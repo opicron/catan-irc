@@ -1,10 +1,13 @@
-# client.py - IRC client that auto-joins invited game channels
+# client.py - final version with /exit command for Python 2.7 + irc==16.4
 import ConfigParser
-import threading
-import time
-from irc.client import SimpleIRCClient, Reactor, NickMask
+import ssl
 import subprocess
 import sys
+import threading
+import time
+
+from irc.client import SimpleIRCClient, Reactor, NickMask, ServerConnectionError
+from irc.connection import Factory
 
 class Client(SimpleIRCClient):
     def __init__(self, config, nickname):
@@ -16,24 +19,34 @@ class Client(SimpleIRCClient):
         self.host_process = None
 
     def on_welcome(self, connection, event):
+        print("[DEBUG] on_welcome: joining lobby {}".format(self.lobby_channel))
         connection.join(self.lobby_channel)
-        print("[CLIENT:{}] Joined lobby {}".format(self.nick, self.lobby_channel))
+
+    def on_join(self, connection, event):
+        nick = NickMask(event.source).nick
+        print("[DEBUG] {} joined {}".format(nick, event.target))
 
     def on_pubmsg(self, connection, event):
-        msg = event.arguments[0].strip()
         sender = NickMask(event.source).nick
-
+        msg = event.arguments[0].strip()
+        print("[DEBUG] Public message from {}: {}".format(sender, msg))
         if msg.startswith("HOST_AVAILABLE"):
-            print("[CLIENT:{}] Host available from {}".format(self.nick, sender))
-        else:
-            print("[CLIENT:{}] {} says: {}".format(self.nick, sender, msg))
+            print("[CLIENT:{}] Host detected from {}".format(self.nick, sender))
 
     def on_invite(self, connection, event):
         inviter = NickMask(event.source).nick
         channel = event.arguments[0]
-        print("[CLIENT:{}] Invited by {} to join {}".format(self.nick, inviter, channel))
-        self.connection.join(channel)
+        print("[DEBUG] Invited by {} to {}".format(inviter, channel))
+        connection.join(channel)
         print("[CLIENT:{}] Auto-joined game channel {}".format(self.nick, channel))
+
+    def on_nicknameinuse(self, connection, event):
+        print("[DEBUG] Nickname '{}' already in use, appending '_'".format(self.nick))
+        connection.nick(self.nick + "_")
+
+    def on_disconnect(self, connection, event):
+        print("[DEBUG] Disconnected from IRC")
+        sys.exit(0)
 
     def run_main_loop(self):
         try:
@@ -43,25 +56,24 @@ class Client(SimpleIRCClient):
                     self.start_host_process()
                 elif user_input == "/join":
                     self.connection.privmsg(self.lobby_channel, "/join")
-                elif user_input == "/quit":
+                elif user_input == "/quit" or user_input == "/exit":
                     print("[CLIENT:{}] Exiting.".format(self.nick))
                     self.stop_host_process()
-                    self.running = False
                     self.connection.quit("Client exiting.")
-                    break
+                    sys.exit(0)
                 else:
                     self.connection.privmsg(self.lobby_channel, "{} says: {}".format(self.nick, user_input))
         except KeyboardInterrupt:
             print("[CLIENT:{}] Interrupted.".format(self.nick))
             self.stop_host_process()
-            self.running = False
-            self.connection.quit("Client interrupted.")
+            self.connection.quit("Interrupted.")
+            sys.exit(0)
 
     def start_host_process(self):
         if not self.host_process:
-            print("[CLIENT:{}] Spawning host.py as external host.".format(self.nick))
+            print("[CLIENT:{}] Starting host.py as subprocess.".format(self.nick))
             self.host_process = subprocess.Popen([sys.executable, "host.py"])
-            time.sleep(1)
+            time.sleep(2)
             self.connection.privmsg(self.lobby_channel, "/join")
         else:
             print("[CLIENT:{}] Host already running.".format(self.nick))
@@ -78,18 +90,27 @@ def main():
     config.read('config.ini')
     server = config.get('irc', 'server')
     port = config.getint('irc', 'port')
+    ssl_enabled = config.getboolean('irc', 'ssl')
 
     nickname = raw_input("Enter your nickname: ").strip()
 
-    reactor = Reactor()
-    client = Client(config, nickname)
-    reactor.scheduler.execute_after(1, lambda: client.connect(server, port, nickname))
+    c = Client(config, nickname)
 
-    reactor_thread = threading.Thread(target=reactor.process_forever)
-    reactor_thread.daemon = True
-    reactor_thread.start()
+    try:
+        if ssl_enabled:
+            print("[DEBUG] Connecting with SSL to {}:{}".format(server, port))
+            factory = Factory(wrapper=ssl.wrap_socket)
+        else:
+            print("[DEBUG] Connecting with plain TCP to {}:{}".format(server, port))
+            factory = None
 
-    client.run_main_loop()
+        c.connect(server, port, nickname, connect_factory=factory)
+    except ServerConnectionError as e:
+        print("[ERROR] Connection failed: {}".format(e))
+        sys.exit(1)
+
+    threading.Thread(target=c.run_main_loop).start()
+    c.start()
 
 if __name__ == "__main__":
     main()
