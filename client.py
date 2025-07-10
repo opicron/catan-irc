@@ -1,4 +1,4 @@
-# client.py - final version with /exit command for Python 2.7 + irc==16.4
+# client.py - Final version for Python 2.7 + irc==16.4
 import ConfigParser
 import ssl
 import subprocess
@@ -22,23 +22,19 @@ class Client(SimpleIRCClient):
         print("[DEBUG] on_welcome: joining lobby {}".format(self.lobby_channel))
         connection.join(self.lobby_channel)
 
-    def on_join(self, connection, event):
-        nick = NickMask(event.source).nick
-        print("[DEBUG] {} joined {}".format(nick, event.target))
-
     def on_pubmsg(self, connection, event):
         sender = NickMask(event.source).nick
         msg = event.arguments[0].strip()
         print("[DEBUG] Public message from {}: {}".format(sender, msg))
         if msg.startswith("HOST_AVAILABLE"):
-            print("[CLIENT:{}] Host detected from {}".format(self.nick, sender))
+            print("[CLIENT:{}] Host detected: {}".format(self.nick, msg))
 
     def on_invite(self, connection, event):
         inviter = NickMask(event.source).nick
         channel = event.arguments[0]
         print("[DEBUG] Invited by {} to {}".format(inviter, channel))
         connection.join(channel)
-        print("[CLIENT:{}] Auto-joined game channel {}".format(self.nick, channel))
+        print("[CLIENT:{}] Auto-joined {}".format(self.nick, channel))
 
     def on_nicknameinuse(self, connection, event):
         print("[DEBUG] Nickname '{}' already in use, appending '_'".format(self.nick))
@@ -54,8 +50,13 @@ class Client(SimpleIRCClient):
                 user_input = raw_input("> ").strip()
                 if user_input == "/start":
                     self.start_host_process()
-                elif user_input == "/join":
-                    self.connection.privmsg(self.lobby_channel, "/join")
+                elif user_input.startswith("/join"):
+                    parts = user_input.split(" ", 1)
+                    if len(parts) == 2:
+                        target_username = parts[1].strip()
+                        self.connection.privmsg(self.lobby_channel, "/join {}".format(target_username))
+                    else:
+                        print("Usage: /join <username>")
                 elif user_input == "/quit" or user_input == "/exit":
                     print("[CLIENT:{}] Exiting.".format(self.nick))
                     self.stop_host_process()
@@ -72,9 +73,9 @@ class Client(SimpleIRCClient):
     def start_host_process(self):
         if not self.host_process:
             print("[CLIENT:{}] Starting host.py as subprocess.".format(self.nick))
-            self.host_process = subprocess.Popen([sys.executable, "host.py"])
-            time.sleep(2)
-            self.connection.privmsg(self.lobby_channel, "/join")
+            self.host_process = subprocess.Popen([sys.executable, "host.py", self.nick])
+            time.sleep(2)  # Allow time for host to initialize
+            self.connection.privmsg(self.lobby_channel, "/join {}".format(self.nick))
         else:
             print("[CLIENT:{}] Host already running.".format(self.nick))
 
