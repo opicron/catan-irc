@@ -1,4 +1,5 @@
-# host.py - Final version for Python 2.7 + irc==16.4
+# host.py - Final version with NAMES-based invite monitoring for Python 2.7 + irc==16.4
+
 import ConfigParser
 import ssl
 import sys
@@ -17,6 +18,7 @@ class HostBot(SimpleIRCClient):
         self.game_channel = "&catan-game-{}".format(owner_username)
         self.players = set()
         self.running = True
+        self.present_nicks = set()
 
     def on_welcome(self, connection, event):
         print("[HOST:{}] on_welcome: joining lobby and creating {}".format(self.owner_username, self.game_channel))
@@ -25,6 +27,7 @@ class HostBot(SimpleIRCClient):
         connection.mode(self.game_channel, "+i")
         print("[HOST:{}] {} set invite-only (+i)".format(self.owner_username, self.game_channel))
         self.start_broadcast_thread()
+        self.start_invite_monitor_thread()
 
     def on_pubmsg(self, connection, event):
         sender = NickMask(event.source).nick
@@ -32,30 +35,67 @@ class HostBot(SimpleIRCClient):
         print("[HOST:{}] Message from {}: {}".format(self.owner_username, sender, msg))
         expected_command = "/join {}".format(self.owner_username)
         if event.target == self.lobby_channel and msg == expected_command:
-            if sender not in self.players:
-                self.players.add(sender)
-                print("[HOST:{}] {} joining game.".format(self.owner_username, sender))
-                connection.privmsg(self.lobby_channel, "[HOST:{}] {} is joining the game.".format(self.owner_username, sender))
-                connection.invite(sender, self.game_channel)
+            print("[HOST:{}] Received /join {} from {}, sending invite immediately.".format(self.owner_username, self.owner_username, sender))
+            self.send_invite(sender)
+
+    def on_join(self, connection, event):
+        nick = NickMask(event.source).nick
+        channel = event.target
+        if channel == self.game_channel:
+            if nick not in self.players and nick != self.connection.get_nickname():
+                self.players.add(nick)
+                print("[HOST:{}] {} has joined game channel.".format(self.owner_username, nick))
+
+    def send_invite(self, nick):
+        print("[HOST:{}] Sending invite to {}".format(self.owner_username, nick))
+        self.connection.invite(nick, self.game_channel)
+
+    def start_invite_monitor_thread(self):
+        def loop():
+            while self.running:
+                print("[HOST:{}] Requesting NAMES for {}".format(self.owner_username, self.game_channel))
+                self.present_nicks.clear()
+                self.connection.names(self.game_channel)
+                time.sleep(10)
+        t = threading.Thread(target=loop)
+        t.daemon = True
+        t.start()
+
+    def on_namreply(self, connection, event):
+        channel = event.arguments[1]
+        names = event.arguments[2].split()
+        print("[HOST:{}] NAMES reply for {}: {}".format(self.owner_username, channel, names))
+        for name in names:
+            cleaned_name = name.lstrip("@+")
+            self.present_nicks.add(cleaned_name)
+
+    def on_endofnames(self, connection, event):
+        print("[HOST:{}] End of NAMES list. Checking players.".format(self.owner_username))
+        for player in self.players:
+            if player not in self.present_nicks:
+                print("[HOST:{}] Player {} missing from channel, sending invite.".format(self.owner_username, player))
+                self.send_invite(player)
+
+    def start_broadcast_thread(self):
+        def loop():
+            while self.running:
+                visible_players = [nick for nick in self.players if nick != self.connection.get_nickname()]
+                players_str = ', '.join(visible_players) if visible_players else 'None'
+                self.connection.privmsg(
+                    self.lobby_channel,
+                    "HOST_AVAILABLE {} (Players: {})".format(self.owner_username, players_str)
+                )
+                print("[HOST:{}] Broadcast: HOST_AVAILABLE (Players: {})".format(self.owner_username, players_str))
+                time.sleep(10)
+        t = threading.Thread(target=loop)
+        t.daemon = True
+        t.start()
 
     def on_disconnect(self, connection, event):
         print("[HOST:{}] Disconnected from IRC".format(self.owner_username))
         sys.exit(0)
 
-    def start_broadcast_thread(self):
-        def loop():
-            while self.running:
-                players = ', '.join(self.players) if self.players else 'None'
-                self.connection.privmsg(self.lobby_channel, "HOST_AVAILABLE {} (Players: {})".format(self.owner_username, players))
-                print("[HOST:{}] Broadcast: HOST_AVAILABLE (Players: {})".format(self.owner_username, players))
-                time.sleep(5)
-
-        t = threading.Thread(target=loop)
-        t.daemon = True  # Python 2.7-compatible daemon flag
-        t.start()
-
 def main():
-    # Accept username from client.py or fallback for manual testing
     if len(sys.argv) >= 2:
         owner_username = sys.argv[1]
     else:
