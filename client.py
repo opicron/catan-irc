@@ -1,4 +1,5 @@
-# client.py - Final version for Python 2.7 + irc==16.4
+# client.py - Fixed version with active_channel switch after join
+
 import ConfigParser
 import ssl
 import subprocess
@@ -15,6 +16,7 @@ class Client(SimpleIRCClient):
         self.config = config
         self.nick = nickname
         self.lobby_channel = config.get('irc', 'channel')
+        self.active_channel = self.lobby_channel  # New: active target channel
         self.running = True
         self.host_process = None
 
@@ -35,6 +37,7 @@ class Client(SimpleIRCClient):
         print("[DEBUG] Invited by {} to {}".format(inviter, channel))
         connection.join(channel)
         print("[CLIENT:{}] Auto-joined {}".format(self.nick, channel))
+        self.active_channel = channel  # Set active channel to game channel after join
 
     def on_nicknameinuse(self, connection, event):
         print("[DEBUG] Nickname '{}' already in use, appending '_'".format(self.nick))
@@ -42,6 +45,7 @@ class Client(SimpleIRCClient):
 
     def on_disconnect(self, connection, event):
         print("[DEBUG] Disconnected from IRC")
+        self.running = False
         sys.exit(0)
 
     def run_main_loop(self):
@@ -63,7 +67,8 @@ class Client(SimpleIRCClient):
                     self.connection.quit("Client exiting.")
                     sys.exit(0)
                 else:
-                    self.connection.privmsg(self.lobby_channel, "{} says: {}".format(self.nick, user_input))
+                    # Send all input to active_channel
+                    self.connection.privmsg(self.active_channel, user_input)
         except KeyboardInterrupt:
             print("[CLIENT:{}] Interrupted.".format(self.nick))
             self.stop_host_process()
