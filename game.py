@@ -1,4 +1,4 @@
-# game.py - Minimal game state class for turn-based /pass game
+# game.py
 
 class GameState(object):
     def __init__(self):
@@ -11,24 +11,52 @@ class GameState(object):
     def add_player(self, nick):
         self.players.add(nick)
 
-    def mark_ready(self, nick):
-        self.ready_players.add(nick)
-        return self.ready_players == self.players and len(self.players) > 0
+    def handle_command(self, sender, msg):
+        responses = []
 
-    def start(self):
+        if not self.game_active:
+            if msg == "/game":
+                if sender in self.players:
+                    self.ready_players.add(sender)
+                    responses.append("{} is ready.".format(sender))
+                    if self.ready_players == self.players and len(self.players) > 0:
+                        self.start_game()
+                        responses.append("!game-start")
+                        responses.append("Game started! Turn order: {}".format(", ".join(self.turn_order)))
+                        responses.append("It's {}'s turn. Type /pass.".format(self.current_player()))
+                else:
+                    responses.append("You must join first.")
+            else:
+                responses.append("{} says: {}".format(sender, msg))
+        else:
+            if msg == "/pass":
+                if sender == self.current_player():
+                    if not self.next_turn():
+                        responses.append("Game over! Thanks for playing.")
+                        self.reset()
+                    else:
+                        responses.append("It's {}'s turn. Type /pass.".format(self.current_player()))
+                else:
+                    responses.append("It's not your turn, {}".format(sender))
+            else:
+                responses.append("{} says: {}".format(sender, msg))
+
+        return responses
+
+    def start_game(self):
         self.turn_order = list(self.players)
         self.current_turn_index = 0
         self.game_active = True
 
     def current_player(self):
-        if self.game_active and self.turn_order:
+        if self.turn_order:
             return self.turn_order[self.current_turn_index]
         return None
 
     def next_turn(self):
         self.current_turn_index += 1
         if self.current_turn_index >= len(self.turn_order):
-            return False  # End game
+            return False
         return True
 
     def reset(self):

@@ -1,4 +1,4 @@
-# host.py - Uses GameState from game.py for simple round /pass based game
+# host.py
 
 import ConfigParser
 import ssl
@@ -9,7 +9,7 @@ import time
 from irc.client import SimpleIRCClient, NickMask, ServerConnectionError
 from irc.connection import Factory
 
-from game import GameState  # Import our separated game logic
+from game import GameState
 
 class HostBot(SimpleIRCClient):
     def __init__(self, config, owner_username):
@@ -19,12 +19,11 @@ class HostBot(SimpleIRCClient):
         self.lobby_channel = config.get('irc', 'channel')
         self.game_channel = "&catan-game-{}".format(owner_username)
         self.running = True
+        self.broadcast_running = True
         self.present_nicks = set()
-
         self.game = GameState()
 
     def on_welcome(self, connection, event):
-        print("[HOST:{}] on_welcome: joining lobby and creating {}".format(self.owner_username, self.game_channel))
         connection.join(self.lobby_channel)
         connection.join(self.game_channel)
         connection.mode(self.game_channel, "+i")
@@ -38,40 +37,31 @@ class HostBot(SimpleIRCClient):
         if event.target == self.lobby_channel and msg == "/join {}".format(self.owner_username):
             self.send_invite(sender)
         elif event.target == self.game_channel:
-            if msg == "/game":
-                print("[DEBUG] /game from {} (channel {})".format(sender, event.target))
-                print("[DEBUG] Players known: {}".format(self.game.players))
-                if sender in self.game.players and not self.game.game_active:
-                    ready = self.game.mark_ready(sender)
-                    self.connection.privmsg(self.game_channel, "{} is ready.".format(sender))
-                    if ready:
-                        self.start_game()
-            elif msg == "/pass":
-                if self.game.game_active and sender == self.game.current_player():
-                    if not self.game.next_turn():
-                        self.end_game()
-                    else:
-                        self.prompt_current_player()
-            else:
-                self.connection.privmsg(self.game_channel, "{}: {}".format(sender, msg))
+            responses = self.game.handle_command(sender, msg)
+            for resp in responses:
+                if resp == "!game-start":
+                    self.broadcast_running = False
+                    print("[HOST:{}] Broadcast stopped on !game-start".format(self.owner_username))
+                self.connection.privmsg(self.game_channel, resp)
 
     def on_join(self, connection, event):
         nick = NickMask(event.source).nick
         channel = event.target
         if channel == self.game_channel and nick != self.connection.get_nickname():
             self.game.add_player(nick)
-            print("[HOST:{}] {} joined game.".format(self.owner_username, nick))
 
     def send_invite(self, nick):
-        print("[HOST:{}] Sending invite to {}".format(self.owner_username, nick))
         self.connection.invite(nick, self.game_channel)
 
     def start_broadcast_thread(self):
         def loop():
-            while self.running:
+            while self.running and self.broadcast_running:
                 visible_players = [p for p in self.game.players if p != self.connection.get_nickname()]
                 players_str = ', '.join(visible_players) if visible_players else 'None'
-                self.connection.privmsg(self.lobby_channel, "HOST_AVAILABLE {} (Players: {})".format(self.owner_username, players_str))
+                try:
+                    self.connection.privmsg(self.lobby_channel, "HOST_AVAILABLE {} (Players: {})".format(self.owner_username, players_str))
+                except:
+                    break
                 time.sleep(10)
         t = threading.Thread(target=loop)
         t.daemon = True
@@ -98,23 +88,8 @@ class HostBot(SimpleIRCClient):
             if player not in self.present_nicks:
                 self.send_invite(player)
 
-    def start_game(self):
-        self.game.start()
-        self.connection.privmsg(self.game_channel, "Game started! Turn order: {}".format(", ".join(self.game.turn_order)))
-        self.prompt_current_player()
-
-    def prompt_current_player(self):
-        current = self.game.current_player()
-        if current:
-            self.connection.privmsg(self.game_channel, "It's {}'s turn. Type /pass to end your turn.".format(current))
-
-    def end_game(self):
-        self.connection.privmsg(self.game_channel, "Game over! Thanks for playing.")
-        self.game.reset()
-
     def on_disconnect(self, connection, event):
-        print("[HOST:{}] Disconnected from IRC".format(self.owner_username))
-        self.running = False  # <--- Ensure threads exit gracefully
+        self.running = False
         sys.exit(0)
 
 def main():
@@ -139,7 +114,6 @@ def main():
             factory = None
         c.connect(server, port, nick, connect_factory=factory)
     except ServerConnectionError as e:
-        print("[HOST:{} ERROR] Connection failed: {}".format(owner_username, e))
         sys.exit(1)
 
     c.start()
