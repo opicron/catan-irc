@@ -89,8 +89,24 @@ class HostBot(SimpleIRCClient):
                 self.send_invite(player)
 
     def on_disconnect(self, connection, event):
+        print("[HOST:{}] Disconnected from server.".format(self.owner_username))
         self.running = False
         sys.exit(0)
+
+    def on_kick(self, connection, event):
+        channel = event.target
+        kicked_nick = NickMask(event.arguments[0]).nick
+        print("[HOST:{}] Kicked from {}: {}".format(self.owner_username, channel, kicked_nick))
+
+    def on_part(self, connection, event):
+        if event.target == self.lobby_channel:
+            print("[HOST:{}] Left lobby, rejoining.".format(self.owner_username))
+            connection.join(self.lobby_channel)
+
+    def on_kick(self, connection, event):
+        if event.target == self.lobby_channel:
+            print("[HOST:{}] Kicked from lobby, rejoining.".format(self.owner_username))
+            connection.join(self.lobby_channel)
 
 def main():
     if len(sys.argv) >= 2:

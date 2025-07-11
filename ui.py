@@ -1,20 +1,21 @@
-# ui.py - Decoupled UI layer for IRC-based client
+# ui.py - version 0.2 decoupled response-returning design
 
 class UI(object):
     def __init__(self, client):
         self.client = client
 
     def handle_server_message(self, sender, msg):
+        responses = []
         print("[{}] {}: {}".format(self.client.active_channel, sender, msg))
         if msg == "!game-start":
-            print("[UI] Detected !game-start. Placeholder for UI launch.")
-            # self.show_ui()  # Future UI integration
+            print("[UI] Detected !game-start. Placeholder for UI initialization.")
+            # self.show_ui()  # Future integration
+        # If UI wants to automatically respond to server msg, add here:
+        # Example: if msg == "!ping": responses.append("pong")
+        return responses
 
-    def user_input_loop(self):
-        try:
-            while True:
-                user_input = raw_input("> ").strip()
-                self.client.send_user_input(user_input)
-        except KeyboardInterrupt:
-            print("[UI] Interrupted by user.")
-            self.client.shutdown()
+    def process_user_input(self, user_input):
+        responses = []
+        if user_input:
+            responses.append(user_input)
+        return responses
