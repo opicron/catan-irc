@@ -32,7 +32,7 @@ class GameState(object):
     def handle_command(self, sender, msg):
         responses = []
 
-        if msg == "/ready":
+        if msg == "!ready":
             return self.handle_ready(sender)
 
         if self.state == 'awaiting_ready':
@@ -42,7 +42,7 @@ class GameState(object):
             return ["!not-your-turn {}".format(sender)]
 
         if self.state == 'awaiting_roll':
-            if msg == "/roll":
+            if msg == "!roll":
                 return self.handle_roll(sender)
             return ["!must-roll"]
 
@@ -52,7 +52,7 @@ class GameState(object):
             return ["!awaiting-robber"]
 
         if self.state == 'awaiting_actions':
-            if msg == "/pass":
+            if msg == "!pass":
                 return self.handle_pass(sender)
             if msg.startswith("/build") or msg.startswith("/trade"):
                 return ["!action-accepted"]

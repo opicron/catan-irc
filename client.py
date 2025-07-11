@@ -1,5 +1,3 @@
-# client.py - version 0.2 decoupled response-returning design
-
 import ConfigParser
 import ssl
 import subprocess
@@ -43,14 +41,14 @@ class Client(SimpleIRCClient):
         sys.exit(0)
 
     def send_user_input(self, user_input):
-        if user_input == "/start":
+        if user_input == "!start":
             self.start_host_process()
-        elif user_input.startswith("/join"):
+        elif user_input.startswith("!join"):
             parts = user_input.split(" ", 1)
             if len(parts) == 2:
                 target_username = parts[1].strip()
-                self.connection.privmsg(self.lobby_channel, "/join {}".format(target_username))
-        elif user_input in ("/quit", "/exit"):
+                self.connection.privmsg(self.lobby_channel, "!join {}".format(target_username))
+        elif user_input in ("!quit", "!exit"):
             self.stop_host_process()
             self.connection.quit("Client exiting.")
             sys.exit(0)
@@ -66,7 +64,7 @@ class Client(SimpleIRCClient):
         if not self.host_process:
             self.host_process = subprocess.Popen([sys.executable, "host.py", self.nick])
             time.sleep(2)
-            self.connection.privmsg(self.lobby_channel, "/join {}".format(self.nick))
+            self.connection.privmsg(self.lobby_channel, "!join {}".format(self.nick))
 
     def stop_host_process(self):
         if self.host_process:

@@ -34,7 +34,7 @@ class Host(SimpleIRCClient):
         sender = NickMask(event.source).nick
         msg = event.arguments[0].strip()
 
-        if event.target == self.lobby_channel and msg == "/join {}".format(self.owner_username):
+        if event.target == self.lobby_channel and msg == "!join {}".format(self.owner_username):
             self.send_invite(sender)
         elif event.target == self.game_channel:
             responses = self.game.handle_command(sender, msg)
