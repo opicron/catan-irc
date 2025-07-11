@@ -11,7 +11,7 @@ from irc.connection import Factory
 
 from game import GameState
 
-class HostBot(SimpleIRCClient):
+class Host(SimpleIRCClient):
     def __init__(self, config, owner_username):
         SimpleIRCClient.__init__(self)
         self.config = config
@@ -121,7 +121,7 @@ def main():
     ssl_enabled = config.getboolean('irc', 'ssl')
 
     nick = "HostBot_{}".format(owner_username)
-    c = HostBot(config, owner_username)
+    c = Host(config, owner_username)
 
     try:
         if ssl_enabled:

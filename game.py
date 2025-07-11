@@ -22,7 +22,7 @@ class GameState(object):
         self.turn_order = []
         self.current_turn_index = 0
         self.game_active = False
-        self.state = 'awaiting_ready'  # State-driven model
+        self.state = 'awaiting_ready'
         self.robber_tile = None
 
     def add_player(self, nick):
@@ -36,39 +36,39 @@ class GameState(object):
             return self.handle_ready(sender)
 
         if self.state == 'awaiting_ready':
-            return ["Game not started yet."]
+            return ["!not-started"]
 
         if sender != self.current_player():
-            return ["It's not your turn, {}.".format(sender)]
+            return ["!not-your-turn {}".format(sender)]
 
         if self.state == 'awaiting_roll':
             if msg == "/roll":
                 return self.handle_roll(sender)
-            return ["You must /roll first."]
+            return ["!must-roll"]
 
         if self.state == 'awaiting_robber_move':
             if msg.startswith("/robber"):
                 return self.handle_robber(sender, msg)
-            return ["You must move the robber now."]
+            return ["!awaiting-robber"]
 
         if self.state == 'awaiting_actions':
             if msg == "/pass":
                 return self.handle_pass(sender)
             if msg.startswith("/build") or msg.startswith("/trade"):
-                return ["Action processed (abstract, validation omitted)."]
-            return ["Unknown action during your turn."]
+                return ["!action-accepted"]
+            return ["!unknown-action"]
 
-        return ["Invalid state."]
+        return ["!invalid-state"]
 
     def handle_ready(self, sender):
         responses = []
         if sender in self.players:
             self.ready_players.add(sender)
-            responses.append("{} is ready.".format(sender))
+            responses.append("!player-ready {}".format(sender))
             if len(self.ready_players) >= 2 and self.ready_players == set(self.players.keys()):
                 responses += self.start_game()
         else:
-            responses.append("You must join first.")
+            responses.append("!join-first")
         return responses
 
     def start_game(self):
@@ -76,38 +76,37 @@ class GameState(object):
         self.current_turn_index = 0
         self.game_active = True
         self.state = 'awaiting_roll'
-        return ["!game-start", "Game started.", "It's {}'s turn. Type /roll.".format(self.current_player())]
+        return ["!game-start", "Game started.", "!turn {}".format(self.current_player())]
 
     def handle_roll(self, sender):
         dice = self.roll_dice()
-        responses = ["{} rolled {}.".format(sender, dice)]
+        responses = ["!rolled {} {}".format(sender, dice)]
         if dice == 7:
             self.state = 'awaiting_robber_move'
-            responses.append("Robber activated.")
-            responses.append("!robber-expected {}".format(sender))
+            responses.append("!robber {}".format(sender))
         else:
-            responses.append("Resources distributed for roll {} (abstracted).".format(dice))
+            responses.append("!resources-distributed {}".format(dice))
             self.state = 'awaiting_actions'
         return responses
 
     def handle_robber(self, sender, msg):
         parts = msg.split()
         if len(parts) != 2:
-            return ["Usage: /robber <tile>."]
+            return ["!usage-robber"]
         tile = parts[1]
-        self.robber_tile = tile  # Abstract position
+        self.robber_tile = tile
         self.state = 'awaiting_actions'
-        return ["Robber moved to tile {} (abstracted).".format(tile)]
+        return ["!robber-moved {}".format(tile)]
 
     def handle_pass(self, sender):
         winner = self.check_winner()
         if winner:
             self.state = 'awaiting_ready'
             self.game_active = False
-            return ["{} wins with 10 VP!".format(winner)]
+            return ["!winner {}".format(winner)]
         self.next_turn()
         self.state = 'awaiting_roll'
-        return ["Turn passed. {}'s turn. Type /roll.".format(self.current_player())]
+        return ["!turn {}".format(self.current_player())]
 
     def roll_dice(self):
         return random.randint(1, 6) + random.randint(1, 6)
