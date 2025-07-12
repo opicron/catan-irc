@@ -30,6 +30,10 @@ class GameState(object):
             self.players[nick] = Player(nick)
 
     def handle_command(self, sender, msg):
+
+        if not msg.startswith("!"):
+            return[]  # Ignore silently or optionally log this
+
         responses = []
 
         if msg == "!ready":
@@ -47,14 +51,14 @@ class GameState(object):
             return ["!must-roll"]
 
         if self.state == 'awaiting_robber_move':
-            if msg.startswith("/robber"):
+            if msg.startswith("!robber"):
                 return self.handle_robber(sender, msg)
             return ["!awaiting-robber"]
 
         if self.state == 'awaiting_actions':
             if msg == "!pass":
                 return self.handle_pass(sender)
-            if msg.startswith("/build") or msg.startswith("/trade"):
+            if msg.startswith("!build") or msg.startswith("!trade"):
                 return ["!action-accepted"]
             return ["!unknown-action"]
 
