@@ -10,18 +10,48 @@ from irc.client import SimpleIRCClient, NickMask, ServerConnectionError
 from irc.connection import Factory
 
 from ui import UI
-from input import Input
+from terminal import Terminal
 
 class Client(SimpleIRCClient):
-    def __init__(self, config, nickname):
+    def __init__(self, config):
         SimpleIRCClient.__init__(self)
         self.config = config
-        self.nick = nickname
+        self.nick = None
         self.lobby_channel = config.get('irc', 'channel')
         self.active_channel = self.lobby_channel
-        self.running = True
+        #self.running = True
         self.host_process = None
+        self.ui = None
+    
+    def connect_to_server(self):
+        """Handle nickname input and server connection"""
+        # Get nickname from user using Terminal
+        try:
+            terminal = Terminal()
+            self.nick = terminal.getstr("Enter your nickname: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nExiting...")
+            sys.exit(0)
+        
+        # Initialize UI after we have a nickname
         self.ui = UI(self)
+        
+        # Get connection parameters
+        server = self.config.get('irc', 'server')
+        port = self.config.getint('irc', 'port')
+        ssl_enabled = self.config.getboolean('irc', 'ssl')
+        
+        # Connect to server
+        try:
+            if ssl_enabled:
+                factory = Factory(wrapper=ssl.wrap_socket)
+            else:
+                factory = None
+            self.connect(server, port, self.nick, connect_factory=factory)
+            return True
+        except ServerConnectionError:
+            print("Failed to connect to IRC server")
+            return False
 
     def on_welcome(self, connection, event):
         connection.join(self.lobby_channel)
@@ -40,7 +70,9 @@ class Client(SimpleIRCClient):
         self.active_channel = channel
 
     def on_disconnect(self, connection, event):
-        self.running = False
+        #self.running = False
+        self.stop_host_process()
+        self.connection.quit("Disconnected.")
         sys.exit(0)
 
     def send_user_input(self, user_input):
@@ -59,6 +91,7 @@ class Client(SimpleIRCClient):
             self.connection.privmsg(self.active_channel, user_input)
 
     def shutdown(self):
+        print("[HOST:{}] Client from server.".format(self.nick))
         self.stop_host_process()
         self.connection.quit("Shutting down.")
         sys.exit(0)
@@ -92,33 +125,19 @@ def main():
     
     config = ConfigParser.ConfigParser()
     config.read(config_path)
-    server = config.get('irc', 'server')
-    port = config.getint('irc', 'port')
-    ssl_enabled = config.getboolean('irc', 'ssl')
-
-    #input_handler = Input()
-    nickname = raw_input("Enter your nickname: ").strip()
-
-    client = Client(config, nickname)
-
-    try:
-        if ssl_enabled:
-            factory = Factory(wrapper=ssl.wrap_socket)
-        else:
-            factory = None
-        client.connect(server, port, nickname, connect_factory=factory)
-    except ServerConnectionError:
+    
+    client = Client(config)
+    
+    # Connect to server (includes nickname input)
+    if not client.connect_to_server():
         sys.exit(1)
-
-    #threading.Thread(target=client.user_input_loop).start()
-    #client.start()
 
     # Start the IRC event loop in a background thread (Python 2.7 style)
     irc_thread = threading.Thread(target=client.start)
     irc_thread.daemon = True
     irc_thread.start()
 
-    client.ui.run()  # <
+    client.ui.run()
 
 if __name__ == "__main__":
     main()
