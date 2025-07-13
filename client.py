@@ -67,8 +67,11 @@ class Client(SimpleIRCClient):
 
     def on_invite(self, connection, event):
         channel = event.arguments[0]
+        inviter = NickMask(event.source).nick
+        self.ui.add_message("[System] Received invite from {} to join {}".format(inviter, channel))
         connection.join(channel)
         self.active_channel = channel
+        self.ui.add_message("[System] Joined channel {} and set as active".format(channel))
 
     def on_disconnect(self, connection, event):
         #self.running = False
@@ -99,9 +102,18 @@ class Client(SimpleIRCClient):
 
     def start_host_process(self):
         if not self.host_process:
-            self.host_process = subprocess.Popen([sys.executable, "host.py", self.nick])
-            time.sleep(2)
-            self.connection.privmsg(self.lobby_channel, "!join {}".format(self.nick))
+            # Get the directory where this script is located
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            host_path = os.path.join(script_dir, 'host.py')
+            self.ui.add_message("[System] Starting host process...")
+            self.host_process = subprocess.Popen([sys.executable, host_path, self.nick])
+
+            time.sleep(3)  # Give the host more time to connect and join channels
+
+            self.send_user_input("!join {}".format(self.nick))
+            join_message = "!join {}".format(self.nick)
+            self.ui.add_message("[System] Sending join request: {}".format(join_message))
+            #self.connection.privmsg(self.lobby_channel, join_message)
 
     def stop_host_process(self):
         if self.host_process:
@@ -114,10 +126,13 @@ class Client(SimpleIRCClient):
         channel = event.target
         if kicked_nick == self.nick:
             # Optionally, notify the UI
-            if hasattr(self, "ui"):
-                self.ui.add_message("[System] You were kicked from {}. Attempting to reconnect...".format(channel))
+            self.ui.add_message("[System] You were kicked from {}. Attempting to reconnect...".format(channel))
             time.sleep(2)  # Wait a moment before rejoining
             connection.join(channel)
+
+    def on_ping(self, connection, event):
+        self.ui.add_message("[System] Received PING from server. Responding with PONG.")
+        connection.pong(event.target if hasattr(event, 'target') else None)
 
 def main():
     # Get the directory where this script is located
