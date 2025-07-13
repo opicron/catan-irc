@@ -60,7 +60,7 @@ class UI(object):
                         # Check for quit commands first
                         if input_buffer.strip() in ("!quit", "!exit"):
                             self.client.send_user_input(input_buffer.strip())
-                            #break
+                            break
                         # Process normal input
                         responses = self.process_user_input(input_buffer.strip())
                         for resp in responses:
@@ -74,7 +74,13 @@ class UI(object):
                         self.draw_prompt(input_buffer)
                         
                 elif key == ord('\x1b'):  # Escape - quit
-                    self.client.send_user_input("!quit")
+                    
+                    self.client.connection.part(self.client.lobby_channel, "UI closed")
+                    # Cleanly disconnect from IRC and wait for the IRC thread to finish
+                    if self.client.connection.is_connected():
+                        self.client.connection.quit("UI closed")
+
+                    #self.client.send_user_input("!quit")
                     break
                     
                 elif key == ord('\x03'):  # Ctrl+C - quit

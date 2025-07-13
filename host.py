@@ -40,7 +40,7 @@ class Host(SimpleIRCClient):
         self.debug_log("[HOST:{}] Connected successfully! Joining channels...".format(self.owner_username))
         connection.join(self.lobby_channel)
         connection.join(self.game_channel)
-        connection.mode(self.game_channel, "+i")
+        #connection.mode(self.game_channel, "+i")
         self.debug_log("[HOST:{}] Joined {} and {}".format(self.owner_username, self.lobby_channel, self.game_channel))
         self.start_broadcast_thread()
         self.start_invite_monitor_thread()
@@ -74,7 +74,7 @@ class Host(SimpleIRCClient):
 
     def start_broadcast_thread(self):
         def loop():
-            while self.running and self.broadcast_running:
+            while self.running:
                 visible_players = [p for p in self.game.players if p != self.connection.get_nickname()]
                 players_str = ', '.join(visible_players) if visible_players else 'None'
                 try:
@@ -82,9 +82,14 @@ class Host(SimpleIRCClient):
                 except:
                     break
                 time.sleep(5)
-        t = threading.Thread(target=loop)
-        t.daemon = True
-        t.start()
+        self.broadcast_thread = threading.Thread(target=loop)
+        self.broadcast_thread.daemon = False
+        self.broadcast_thread.start()
+
+    def stop_broadcast_thread(self):
+        self.running = False
+        if hasattr(self, 'broadcast_thread') and self.broadcast_thread.is_alive():
+            self.broadcast_thread.join(timeout=2)
 
     def start_invite_monitor_thread(self):
         def loop():
@@ -92,9 +97,14 @@ class Host(SimpleIRCClient):
                 self.present_nicks.clear()
                 self.connection.names(self.game_channel)
                 time.sleep(20)
-        t = threading.Thread(target=loop)
-        t.daemon = True
-        t.start()
+        self.invite_monitor_thread = threading.Thread(target=loop)
+        self.invite_monitor_thread.daemon = False
+        self.invite_monitor_thread.start()
+
+    def stop_invite_monitor_thread(self):
+        self.running = False
+        if hasattr(self, 'invite_monitor_thread') and self.invite_monitor_thread.is_alive():
+            self.invite_monitor_thread.join(timeout=2)
 
     def on_namreply(self, connection, event):
         names = event.arguments[2].split()
@@ -112,6 +122,8 @@ class Host(SimpleIRCClient):
         event_args = getattr(event, 'arguments', None)
         self.debug_log("[HOST:{}] Disconnected from server. Event: {} | Type: {} | Args: {}".format(self.owner_username, repr(event), event_type, event_args))
         self.running = False
+        self.stop_broadcast_thread()
+        self.stop_invite_monitor_thread()
         sys.exit(0)
 
     def on_kick(self, connection, event):

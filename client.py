@@ -76,7 +76,7 @@ class Client(SimpleIRCClient):
     def on_disconnect(self, connection, event):
         #self.running = False
         self.stop_host_process()
-        self.connection.quit("Disconnected.")
+        #self.connection.quit("Disconnected.") #already disconnected
         sys.exit(0)
 
     def send_user_input(self, user_input):
@@ -150,10 +150,13 @@ def main():
 
     # Start the IRC event loop in a background thread (Python 2.7 style)
     irc_thread = threading.Thread(target=client.start)
-    irc_thread.daemon = True
+    irc_thread.daemon = False
     irc_thread.start()
 
     client.ui.run()
+
+    irc_thread.join(timeout=4)
+    # If the program still hangs, check for other non-daemon threads or blocking calls.
 
 if __name__ == "__main__":
     main()

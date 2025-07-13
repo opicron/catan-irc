@@ -1,0 +1,35 @@
+[2025-07-13 22:55:39] [HOST:test] Connected successfully! Joining channels...
+[2025-07-13 22:55:39] [HOST:test] Joined #catan-lobby and &catan-game-test
+[2025-07-13 22:56:10] [HOST:test] Received message from opicron: '!join test' in channel #catan-lobby
+[2025-07-13 22:56:10] [HOST:test] Processing join request from opicron
+[2025-07-13 22:56:10] [HOST:test] Sending invite to opicron for channel &catan-game-test
+[2025-07-13 22:56:40] [HOST:test] Received message from opicron: '!join test' in channel #catan-lobby
+[2025-07-13 22:56:40] [HOST:test] Processing join request from opicron
+[2025-07-13 22:56:40] [HOST:test] Sending invite to opicron for channel &catan-game-test
+[2025-07-13 22:59:46] [HOST:dah] Connected successfully! Joining channels...
+[2025-07-13 22:59:46] [HOST:dah] Joined #catan-lobby and &catan-game-dah
+[2025-07-13 23:01:19] [HOST:pop] Connected successfully! Joining channels...
+[2025-07-13 23:01:19] [HOST:pop] Joined #catan-lobby and &catan-game-pop
+[2025-07-13 23:01:21] [HOST:pop] Received message from pop: '!join pop' in channel #catan-lobby
+[2025-07-13 23:01:21] [HOST:pop] Processing join request from pop
+[2025-07-13 23:01:21] [HOST:pop] Sending invite to pop for channel &catan-game-pop
+[2025-07-13 23:05:42] [HOST:ret] Connected successfully! Joining channels...
+[2025-07-13 23:05:43] [HOST:ret] Joined #catan-lobby and &catan-game-ret
+[2025-07-13 23:05:45] [HOST:ret] Received message from ret: '!join ret' in channel #catan-lobby
+[2025-07-13 23:05:45] [HOST:ret] Processing join request from ret
+[2025-07-13 23:05:45] [HOST:ret] Sending invite to ret for channel &catan-game-ret
+[2025-07-13 23:06:44] [HOST:jhu] Connected successfully! Joining channels...
+[2025-07-13 23:06:44] [HOST:jhu] Joined #catan-lobby and &catan-game-jhu
+[2025-07-13 23:06:47] [HOST:jhu] Received message from jhu: '!join jhu' in channel #catan-lobby
+[2025-07-13 23:06:47] [HOST:jhu] Processing join request from jhu
+[2025-07-13 23:06:47] [HOST:jhu] Sending invite to jhu for channel &catan-game-jhu
+[2025-07-13 23:07:50] [HOST:hj] Connected successfully! Joining channels...
+[2025-07-13 23:07:50] [HOST:hj] Joined #catan-lobby and &catan-game-hj
+[2025-07-13 23:07:52] [HOST:hj] Received message from hj: '!join hj' in channel #catan-lobby
+[2025-07-13 23:07:52] [HOST:hj] Processing join request from hj
+[2025-07-13 23:07:52] [HOST:hj] Sending invite to hj for channel &catan-game-hj
+[2025-07-13 23:09:32] [HOST:huh] Connected successfully! Joining channels...
+[2025-07-13 23:09:32] [HOST:huh] Joined #catan-lobby and &catan-game-huh
+[2025-07-13 23:09:34] [HOST:huh] Received message from huh: '!join huh' in channel #catan-lobby
+[2025-07-13 23:09:34] [HOST:huh] Processing join request from huh
+[2025-07-13 23:09:34] [HOST:huh] Sending invite to huh for channel &catan-game-huh
