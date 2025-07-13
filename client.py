@@ -35,7 +35,8 @@ class Client(SimpleIRCClient):
         
         # Initialize UI after we have a nickname
         self.ui = UI(self)
-        
+        terminal.clear()
+
         # Get connection parameters
         server = self.config.get('irc', 'server')
         port = self.config.getint('irc', 'port')
@@ -85,7 +86,7 @@ class Client(SimpleIRCClient):
                 self.connection.privmsg(self.lobby_channel, "!join {}".format(target_username))
         elif user_input in ("!quit", "!exit"):
             self.stop_host_process()
-            self.connection.quit("Client exiting.")
+            # Don't call connection.quit() to avoid triggering on_disconnect
             sys.exit(0)
         else:
             self.connection.privmsg(self.active_channel, user_input)

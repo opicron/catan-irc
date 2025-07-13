@@ -75,11 +75,11 @@ class UI(object):
                         
                 elif key == ord('\x1b'):  # Escape - quit
                     self.client.send_user_input("!quit")
-                    #break
+                    break
                     
                 elif key == ord('\x03'):  # Ctrl+C - quit
                     self.client.send_user_input("!quit")
-                    #break
+                    break
                     
                 elif key == ord('\t'):  # Tab - toggle compact mode
                     self.compact_mode = not self.compact_mode
@@ -96,10 +96,11 @@ class UI(object):
                     input_buffer += ch
                     self.draw_prompt(input_buffer)
                         
-        except KeyboardInterrupt:
+        #except KeyboardInterrupt:
             # Handle Ctrl+C gracefully
-            self.client.send_user_input("!quit")
+            #self.client.send_user_input("!quit")
         except Exception as e:
+            self.client.send_user_input("!quit")
             # Handle any unexpected errors gracefully
             pass
         finally:
@@ -112,8 +113,6 @@ class UI(object):
             except:
                 pass
         
-        self.client.shutdown()
-
     def draw_chat(self):
         """Draw only the chat area"""
         height, width = self.terminal.gettermsize()
