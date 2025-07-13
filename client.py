@@ -4,11 +4,13 @@ import subprocess
 import sys
 import threading
 import time
+import os
 
 from irc.client import SimpleIRCClient, NickMask, ServerConnectionError
 from irc.connection import Factory
 
 from ui import UI
+from input import Input
 
 class Client(SimpleIRCClient):
     def __init__(self, config, nickname):
@@ -27,7 +29,8 @@ class Client(SimpleIRCClient):
     def on_pubmsg(self, connection, event):
         sender = NickMask(event.source).nick
         msg = event.arguments[0].strip()
-        responses = self.ui.handle_server_message(sender, msg)
+        channel = event.target  # The channel where the message was sent
+        responses = self.ui.handle_server_message(channel, sender, msg)
         for resp in responses:
             self.send_user_input(resp)
 
@@ -72,23 +75,28 @@ class Client(SimpleIRCClient):
             self.host_process.wait()
             self.host_process = None
 
-    def user_input_loop(self):
-        try:
-            while True:
-                user_input = raw_input("> ").strip()
-                responses = self.ui.process_user_input(user_input)
-                for resp in responses:
-                    self.send_user_input(resp)
-        except KeyboardInterrupt:
-            self.shutdown()
+    def on_kick(self, connection, event):
+        kicked_nick = event.arguments[0]
+        channel = event.target
+        if kicked_nick == self.nick:
+            # Optionally, notify the UI
+            if hasattr(self, "ui"):
+                self.ui.add_message("[System] You were kicked from {}. Attempting to reconnect...".format(channel))
+            time.sleep(2)  # Wait a moment before rejoining
+            connection.join(channel)
 
 def main():
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, 'config.ini')
+    
     config = ConfigParser.ConfigParser()
-    config.read('config.ini')
+    config.read(config_path)
     server = config.get('irc', 'server')
     port = config.getint('irc', 'port')
     ssl_enabled = config.getboolean('irc', 'ssl')
 
+    #input_handler = Input()
     nickname = raw_input("Enter your nickname: ").strip()
 
     client = Client(config, nickname)
@@ -102,8 +110,15 @@ def main():
     except ServerConnectionError:
         sys.exit(1)
 
-    threading.Thread(target=client.user_input_loop).start()
-    client.start()
+    #threading.Thread(target=client.user_input_loop).start()
+    #client.start()
+
+    # Start the IRC event loop in a background thread (Python 2.7 style)
+    irc_thread = threading.Thread(target=client.start)
+    irc_thread.daemon = True
+    irc_thread.start()
+
+    client.ui.run()  # <
 
 if __name__ == "__main__":
     main()

@@ -5,6 +5,7 @@ import ssl
 import sys
 import threading
 import time
+import os
 
 from irc.client import SimpleIRCClient, NickMask, ServerConnectionError
 from irc.connection import Factory
@@ -115,7 +116,10 @@ def main():
         owner_username = raw_input("Enter owner username for this host: ").strip()
 
     config = ConfigParser.ConfigParser()
-    config.read('config.ini')
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, 'config.ini')
+    config.read(config_path)
     server = config.get('irc', 'server')
     port = config.getint('irc', 'port')
     ssl_enabled = config.getboolean('irc', 'ssl')
