@@ -35,12 +35,15 @@ class UI(object):
         if len(self.chat_history) > self.max_history:
             self.chat_history.pop(0)
         if hasattr(self, 'display'):
-            self.draw()
+            self.draw_chat()  # Only redraw chat when new message arrives
 
     def run(self):
         self.display = Display()
+        self.display.clear()  # Clear display before starting input loop
+
         input_buffer = ""
-        self.draw(input_buffer)  # Draw once initially
+        self.draw_chat()  # Draw chat initially
+        self.draw_prompt(input_buffer)  # Draw prompt initially
         
         try:
             while True:
@@ -57,11 +60,11 @@ class UI(object):
                             if input_buffer.strip() in ("!quit", "!exit"):
                                 break
                         input_buffer = ""
-                        self.draw(input_buffer)  # Redraw only when needed
+                        self.draw_prompt(input_buffer)  # Only redraw prompt
                     elif ord(ch) == 8 or ord(ch) == 127:  # Backspace
                         if input_buffer:
                             input_buffer = input_buffer[:-1]
-                            self.draw(input_buffer)  # Redraw when input changes
+                            self.draw_prompt(input_buffer)  # Only redraw prompt
                     elif ord(ch) == 27:  # Escape - quit
                         self.client.send_user_input("!quit")
                         break
@@ -71,10 +74,11 @@ class UI(object):
                     elif ord(ch) == 9:  # Tab - toggle compact mode
                         self.compact_mode = not self.compact_mode
                         self.display.clear()
-                        self.draw(input_buffer)  # Redraw when display mode changes
+                        self.draw_chat()  # Redraw chat when mode changes
+                        self.draw_prompt(input_buffer)  # Redraw prompt after chat
                     elif ord(ch) >= 32 and ord(ch) <= 126:  # Printable characters
                         input_buffer += ch
-                        self.draw(input_buffer)  # Redraw when input changes
+                        self.draw_prompt(input_buffer)  # Only redraw prompt
                 else:
                     # No key pressed - add small delay to prevent high CPU usage
                     import time
@@ -89,9 +93,11 @@ class UI(object):
         
         self.client.shutdown()
 
-    def draw(self, input_buffer=""):
+    def draw_chat(self):
+        """Draw only the chat area"""
         height, width = self.display.gettermsize()
         blank = " " * (width - 1)
+        
         if self.compact_mode:
             chat_lines = 5
             start_row = height - 1 - chat_lines
@@ -108,8 +114,18 @@ class UI(object):
                 msg_idx = start + idx
                 msg = self.chat_history[msg_idx] if msg_idx < len(self.chat_history) else ""
                 self.display.writexy(0, idx, (msg + blank)[:width - 1])
+        
+        self.display.refresh()
+
+    def draw_prompt(self, input_buffer=""):
+        """Draw only the input prompt line"""
+        height, width = self.display.gettermsize()
+        blank = " " * (width - 1)
+        
         # Draw prompt
         prompt = "> " + input_buffer
         self.display.writexy(0, height - 1, (prompt + blank)[:width - 1])
         self.display.gotoxy(min(len(prompt), width - 1), height - 1)
         self.display.refresh()
+
+
