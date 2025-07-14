@@ -61,6 +61,21 @@ class Client(SimpleIRCClient):
         sender = NickMask(event.source).nick
         msg = event.arguments[0].strip()
         channel = event.target  # The channel where the message was sent
+
+        # Listen for HOST_AVAILABLE broadcasts from our own host
+        expected_bot = "HostBot_{}".format(self.nick)
+        if channel == self.lobby_channel and sender == expected_bot and msg.startswith("HOST_AVAILABLE "):
+            # Example: HOST_AVAILABLE Alice (Players: Bob, Alice)
+            import re
+            m = re.match(r"HOST_AVAILABLE (\S+) \(Players: (.*)\)", msg)
+            if m:
+                host_owner = m.group(1)
+                players = [p.strip() for p in m.group(2).split(',') if p.strip()]
+                if host_owner == self.nick:
+                    if self.nick not in players:
+                        self.ui.add_message("[System] Host {} is ready. Sending join request...".format(expected_bot))
+                        self.send_user_input("!join {}".format(self.nick))
+                        
         responses = self.ui.handle_server_message(channel, sender, msg)
         for resp in responses:
             self.send_user_input(resp)
@@ -107,12 +122,13 @@ class Client(SimpleIRCClient):
             host_path = os.path.join(script_dir, 'host.py')
             self.ui.add_message("[System] Starting host process...")
             self.host_process = subprocess.Popen([sys.executable, host_path, self.nick])
+            self.ui.add_message("[System] Host process started. Waiting for host to become available...")
 
-            time.sleep(3)  # Give the host more time to connect and join channels
+            time.sleep(1)  # Give the host more time to connect and join channels
 
-            self.send_user_input("!join {}".format(self.nick))
-            join_message = "!join {}".format(self.nick)
-            self.ui.add_message("[System] Sending join request: {}".format(join_message))
+            #self.send_user_input("!join {}".format(self.nick))
+            #join_message = "!join {}".format(self.nick)
+            #self.ui.add_message("[System] Sending join request: {}".format(join_message))
             #self.connection.privmsg(self.lobby_channel, join_message)
 
     def stop_host_process(self):

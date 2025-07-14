@@ -33,3 +33,53 @@
 [2025-07-13 23:09:34] [HOST:huh] Received message from huh: '!join huh' in channel #catan-lobby
 [2025-07-13 23:09:34] [HOST:huh] Processing join request from huh
 [2025-07-13 23:09:34] [HOST:huh] Sending invite to huh for channel &catan-game-huh
+[2025-07-14 20:56:09] [HOST:pop] Connected successfully! Joining channels...
+[2025-07-14 20:56:09] [HOST:pop] Joined #catan-lobby and &catan-game-pop
+[2025-07-14 20:56:11] [HOST:pop] Received message from pop: '!join pop' in channel #catan-lobby
+[2025-07-14 20:56:11] [HOST:pop] Processing join request from pop
+[2025-07-14 20:56:11] [HOST:pop] Sending invite to pop for channel &catan-game-pop
+[2025-07-14 20:56:43] [HOST:pop] Received message from opicron: '!join pop' in channel #catan-lobby
+[2025-07-14 20:56:43] [HOST:pop] Processing join request from opicron
+[2025-07-14 20:56:43] [HOST:pop] Sending invite to opicron for channel &catan-game-pop
+[2025-07-14 20:57:09] [HOST:pop] Sending invite to opicron for channel &catan-game-pop
+[2025-07-14 20:57:18] [HOST:pop] Received message from pop: '!ready' in channel &catan-game-pop
+[2025-07-14 21:10:23] [HOST:opi] Connected successfully! Joining channels...
+[2025-07-14 21:10:23] [HOST:opi] Joined #catan-lobby and &catan-game-opi
+[2025-07-14 21:10:25] [HOST:opi] Received message from opi: '!join opi' in channel #catan-lobby
+[2025-07-14 21:10:25] [HOST:opi] Processing join request from opi
+[2025-07-14 21:10:25] [HOST:opi] Sending invite to opi for channel &catan-game-opi
+[2025-07-14 21:10:35] [HOST:opi] Received message from opicron: '!join opi' in channel #catan-lobby
+[2025-07-14 21:10:35] [HOST:opi] Processing join request from opicron
+[2025-07-14 21:10:35] [HOST:opi] Sending invite to opicron for channel &catan-game-opi
+[2025-07-14 21:16:18] [HOST:lol] Connected successfully! Joining channels...
+[2025-07-14 21:16:18] [HOST:lol] Joined #catan-lobby and &catan-game-lol
+[2025-07-14 21:16:20] [HOST:lol] Received message from lol: '!join lol' in channel #catan-lobby
+[2025-07-14 21:16:20] [HOST:lol] Processing join request from lol
+[2025-07-14 21:16:20] [HOST:lol] Sending invite to lol for channel &catan-game-lol
+[2025-07-14 21:16:28] [HOST:lol] Received message from opicron: '!join lol' in channel #catan-lobby
+[2025-07-14 21:16:28] [HOST:lol] Processing join request from opicron
+[2025-07-14 21:16:28] [HOST:lol] Sending invite to opicron for channel &catan-game-lol
+[2025-07-14 21:21:09] [HOST:kik] Connected successfully! Joining channels...
+[2025-07-14 21:21:09] [HOST:kik] Joined #catan-lobby and &catan-game-kik
+[2025-07-14 21:21:25] [HOST:kik] Received message from opicron: '!join kik' in channel #catan-lobby
+[2025-07-14 21:21:25] [HOST:kik] Processing join request from opicron
+[2025-07-14 21:21:25] [HOST:kik] Sending invite to opicron for channel &catan-game-kik
+[2025-07-14 21:22:22] [HOST:dee] Connected successfully! Joining channels...
+[2025-07-14 21:22:22] [HOST:dee] Joined #catan-lobby and &catan-game-dee
+[2025-07-14 21:23:00] [HOST:mooo] Connected successfully! Joining channels...
+[2025-07-14 21:23:00] [HOST:mooo] Joined #catan-lobby and &catan-game-mooo
+[2025-07-14 21:23:02] [HOST:mooo] Received message from mooo: '!join mooo' in channel #catan-lobby
+[2025-07-14 21:23:02] [HOST:mooo] Processing join request from mooo
+[2025-07-14 21:23:02] [HOST:mooo] Sending invite to mooo for channel &catan-game-mooo
+[2025-07-14 22:32:51] [HOST:kok] Connected successfully! Joining channels...
+[2025-07-14 22:32:51] [HOST:kok] Joined #catan-lobby and &catan-game-kok
+[2025-07-14 22:32:53] [HOST:kok] Received message from kok: '!join kok' in channel #catan-lobby
+[2025-07-14 22:32:53] [HOST:kok] Processing join request from kok
+[2025-07-14 22:32:53] [HOST:kok] Sending invite to kok for channel &catan-game-kok
+[2025-07-14 22:34:18] [HOST:test] Connected successfully! Joining channels...
+[2025-07-14 22:34:18] [HOST:test] Joined #catan-lobby and &catan-game-test
+[2025-07-14 22:47:58] [HOST:kok] Connected successfully! Joining channels...
+[2025-07-14 22:47:58] [HOST:kok] Joined #catan-lobby and &catan-game-kok
+[2025-07-14 22:47:59] [HOST:kok] Received message from kok: '!join kok' in channel #catan-lobby
+[2025-07-14 22:47:59] [HOST:kok] Processing join request from kok
+[2025-07-14 22:47:59] [HOST:kok] Sending invite to kok for channel &catan-game-kok
