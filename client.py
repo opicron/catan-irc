@@ -62,12 +62,12 @@ class Client(SimpleIRCClient):
         msg = event.arguments[0].strip()
         channel = event.target  # The channel where the message was sent
 
-        # Listen for HOST_AVAILABLE broadcasts from our own host
+        # Listen for !host broadcasts from our own host
         expected_bot = "HostBot_{}".format(self.nick)
-        if channel == self.lobby_channel and sender == expected_bot and msg.startswith("HOST_AVAILABLE "):
-            # Example: HOST_AVAILABLE Alice (Players: Bob, Alice)
+        if channel == self.lobby_channel and sender == expected_bot and msg.startswith("!host "):
+            # Example: !host Alice (Players: Bob, Alice)
             import re
-            m = re.match(r"HOST_AVAILABLE (\S+) \(Players: (.*)\)", msg)
+            m = re.match(r"!host (\S+) \(Players: (.*)\)", msg)
             if m:
                 host_owner = m.group(1)
                 players = [p.strip() for p in m.group(2).split(',') if p.strip()]
@@ -75,7 +75,7 @@ class Client(SimpleIRCClient):
                     if self.nick not in players:
                         self.ui.add_message("[System] Host {} is ready. Sending join request...".format(expected_bot))
                         self.send_user_input("!join {}".format(self.nick))
-
+                        
         responses = self.ui.handle_server_message(channel, sender, msg)
         for resp in responses:
             self.send_user_input(resp)

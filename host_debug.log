@@ -88,3 +88,8 @@
 [2025-07-14 22:55:35] [HOST:kek] Received message from kek: '!join kek' in channel #catan-lobby
 [2025-07-14 22:55:35] [HOST:kek] Processing join request from kek
 [2025-07-14 22:55:35] [HOST:kek] Sending invite to kek for channel &catan-game-kek
+[2025-07-14 22:59:45] [HOST:jah] Connected successfully! Joining channels...
+[2025-07-14 22:59:45] [HOST:jah] Joined #catan-lobby and &catan-game-jah
+[2025-07-14 22:59:46] [HOST:jah] Received message from jah: '!join jah' in channel #catan-lobby
+[2025-07-14 22:59:46] [HOST:jah] Processing join request from jah
+[2025-07-14 22:59:46] [HOST:jah] Sending invite to jah for channel &catan-game-jah

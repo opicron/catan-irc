@@ -78,7 +78,7 @@ class Host(SimpleIRCClient):
                 visible_players = [p for p in self.game.players if p != self.connection.get_nickname()]
                 players_str = ', '.join(visible_players) if visible_players else 'None'
                 try:
-                    self.connection.privmsg(self.lobby_channel, "HOST_AVAILABLE {} (Players: {})".format(self.owner_username, players_str))
+                    self.connection.privmsg(self.lobby_channel, "!host {} (Players: {})".format(self.owner_username, players_str))
                 except:
                     break
                 time.sleep(5)
