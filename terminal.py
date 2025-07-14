@@ -175,7 +175,7 @@ class Terminal(object):
                     self.refresh()
                     return input_str
                     
-                elif key == self.curses.KEY_BACKSPACE:  # Backspace
+                elif key == self.curses.KEY_BACKSPACE or key == ord('\b') or key == 127:  # Backspace
                     if input_str:
                         input_str = input_str[:-1]
                         # Clear the input area and redraw
