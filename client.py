@@ -75,7 +75,7 @@ class Client(SimpleIRCClient):
                     if self.nick not in players:
                         self.ui.add_message("[System] Host {} is ready. Sending join request...".format(expected_bot))
                         self.send_user_input("!join {}".format(self.nick))
-                        
+
         responses = self.ui.handle_server_message(channel, sender, msg)
         for resp in responses:
             self.send_user_input(resp)
@@ -124,12 +124,6 @@ class Client(SimpleIRCClient):
             self.host_process = subprocess.Popen([sys.executable, host_path, self.nick])
             self.ui.add_message("[System] Host process started. Waiting for host to become available...")
 
-            time.sleep(1)  # Give the host more time to connect and join channels
-
-            #self.send_user_input("!join {}".format(self.nick))
-            #join_message = "!join {}".format(self.nick)
-            #self.ui.add_message("[System] Sending join request: {}".format(join_message))
-            #self.connection.privmsg(self.lobby_channel, join_message)
 
     def stop_host_process(self):
         if self.host_process:
