@@ -71,7 +71,6 @@ class HexMap(object):
         next_edge_id = 0
         next_node_id = 0
 
-        # First pass: compute unique edges
         for tile in self.tiles:
             for dir_idx in range(6):
                 neighbor_tile = neighbor(tile, dir_idx)
@@ -83,7 +82,6 @@ class HexMap(object):
                     edge_id_map[key] = next_edge_id
                     next_edge_id += 1
 
-        # Helper for retrieving edge id
         def edge_id(a, d_or_b):
             if isinstance(d_or_b, int):
                 key = (a, d_or_b)
@@ -91,13 +89,13 @@ class HexMap(object):
                 key = tuple(sorted([a, d_or_b]))
             return edge_id_map[key]
 
-        # Second pass: compute unique nodes and attach edges/nodes to tiles
+        # build_nodes_and_edges
+
         for tile_coord, tile in self.tiles.items():
             tile_edges = []
             corner_node_ids = set()
 
             for i in range(6):
-                # Assign edges
                 neighbor_tile = neighbor(tile_coord, i)
                 eid = edge_id(tile_coord, neighbor_tile if neighbor_tile in self.tiles else i)
                 tile_edges.append(eid)
@@ -145,7 +143,6 @@ class HexMap(object):
         self.node_autoinc = next_node_id
         self.edge_autoinc = next_edge_id
 
-
 def gotoxy(x, y):
     sys.stdout.write("\033[%d;%dH" % (y + 1, x + 1))
     sys.stdout.flush()
@@ -158,8 +155,6 @@ def draw_tile(tile, col, row, highlight=False):
 
     if highlight:
         sys.stdout.write("\033[33m")
-    else:
-        sys.stdout.write("\033[0m")
 
     gotoxy(col, row)
     sys.stdout.write(border)
@@ -167,6 +162,9 @@ def draw_tile(tile, col, row, highlight=False):
     sys.stdout.write(coord_line)
     gotoxy(col, row + 2)
     sys.stdout.write(border)
+
+    if highlight:
+        sys.stdout.write("\033[0m")
 
     sys.stdout.flush()
 
@@ -177,18 +175,40 @@ def compute_bounds(hexmap):
     max_r = max(tile.z for tile in hexmap.tiles.values())
     return min_q, max_q, min_r, max_r
 
-def render_coordinates(hexmap):
+def get_map_screen_size(hexmap):
+    min_q, max_q, min_r, max_r = compute_bounds(hexmap)
+
+    cols = []
+    rows = []
+
+    for tile in hexmap.tiles.values():
+        q, r = tile.x, tile.z
+        col = (q + (r // 2) - min_q) * (TILE_WIDTH - 1)
+        row = (r - min_r) * (TILE_HEIGHT - 1)
+        if r % 2 != 0:
+            col += TILE_WIDTH // 2
+        cols.append(col)
+        rows.append(row)
+
+    width = max(cols) + TILE_WIDTH
+    height = max(rows) + TILE_HEIGHT
+    return width, height
+
+def get_tile_screen_pos(tile, hexmap):
     min_q, max_q, min_r, max_r = compute_bounds(hexmap)
     offset_col = -(min_q + (min_r // 2)) - 1
     offset_row = -min_r
 
-    for tile in hexmap.tiles.values():
-        q, r, s = tile.x, tile.z, tile.y
-        col = (q + (r // 2) + offset_col) * (TILE_WIDTH - 1)
-        row = (r + offset_row) * (TILE_HEIGHT - 1)
-        if r % 2 != 0:
-            col += TILE_WIDTH // 2
+    q, r = tile.x, tile.z
+    col = (q + (r // 2) + offset_col) * (TILE_WIDTH - 1)
+    row = (r + offset_row) * (TILE_HEIGHT - 1)
+    if r % 2 != 0:
+        col += TILE_WIDTH // 2
+    return col, row
 
+def render_coordinates(hexmap):
+    for tile in hexmap.tiles.values():
+        col, row = get_tile_screen_pos(tile, hexmap)
         draw_tile(tile, col, row)
 
 if __name__ == "__main__":
@@ -199,6 +219,8 @@ if __name__ == "__main__":
     hexmap.generate_default_map(radius=3)
     hexmap.build_nodes_and_edges()
 
+    render_coordinates(hexmap)
+
     center = (0, 0, 0)
     neighbors = set()
     for dx, dy, dz in hexmap.directions:
@@ -207,19 +229,9 @@ if __name__ == "__main__":
             neighbors.add(neighbor)
     neighbors.add(center)
 
-    render_coordinates(hexmap)
-
-    min_q, max_q, min_r, max_r = compute_bounds(hexmap)
-    offset_col = -(min_q + (min_r // 2)) - 1
-    offset_row = -min_r
-
     for coord in neighbors:
         tile = hexmap.tiles[coord]
-        q, r, s = tile.x, tile.z, tile.y
-        col = (q + (r // 2) + offset_col) * (TILE_WIDTH - 1)
-        row = (r + offset_row) * (TILE_HEIGHT - 1)
-        if r % 2 != 0:
-            col += TILE_WIDTH // 2
+        col, row = get_tile_screen_pos(tile, hexmap)
         draw_tile(tile, col, row, highlight=True)
 
     selected_nodes = set()
@@ -229,14 +241,11 @@ if __name__ == "__main__":
         selected_nodes.update(tile.nodes)
         selected_edges.update(tile.edges)
 
+    width, height = get_map_screen_size(hexmap)
+    gotoxy(0, height)
+
     print("\nTiles: %d" % hexmap.tile_autoinc)
     print("Nodes in selection: %d unique" % len(selected_nodes))
     print("Edges in selection: %d unique" % len(selected_edges))
-
-    print("\nAll Nodes (global): %d total" % len(hexmap.node_ids))
-    #for node_key, node_id in hexmap.node_ids.items():
-    #    print("Node %d: edges=%s" % (node_id, node_key))
-
-    print("\nAll Edges (global): %d total" % len(hexmap.edge_ids))
-    #for edge_key, edge_id in hexmap.edge_ids.items():
-    #    print("Edge %d: %s" % (edge_id, edge_key))
+    print("All Nodes (global): %d total" % len(hexmap.node_ids))
+    print("All Edges (global): %d total" % len(hexmap.edge_ids))
