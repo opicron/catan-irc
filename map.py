@@ -1,4 +1,5 @@
 import sys
+import random
 
 TILE_WIDTH = 11
 TILE_HEIGHT = 3
@@ -15,36 +16,70 @@ class HexTile(object):
         self.edges = []
 
 class HexMap(object):
+
+    # --- Directional edge indices
+    #EDGE_E = 0
+    #EDGE_NE = 1
+    #EDGE_NW = 2
+    #EDGE_W = 3
+    #EDGE_SW = 4
+    #EDGE_SE = 5
+
+    # --- Corner node indices
+    #NODE_N = 0
+    #NODE_NE = 1
+    #NODE_SE = 2
+    #NODE_S = 3
+    #NODE_SW = 4
+    #NODE_NW = 5
+
+    # Node indices (clockwise starting at top)
+    NODE_N  = 0  # Node 0 (Top / North)
+    NODE_NE = 1  # Node 1
+    NODE_SE = 2  # Node 2
+    NODE_S  = 3  # Node 3
+    NODE_SW = 4  # Node 4
+    NODE_NW = 5  # Node 5
+
+    # Edge indices (clockwise, start at top between NODE_0 and NODE_1)
+    EDGE_NE  = 0  # Edge 0
+    EDGE_E = 1  # Edge 1
+    EDGE_SE = 2  # Edge 2
+    EDGE_SW  = 3  # Edge 3
+    EDGE_W = 4  # Edge 4
+    EDGE_NW = 5  # Edge 5
+
     def __init__(self, orientation="pointy"):
         self.tiles = {}
         self.tile_autoinc = 0
         self.node_ids = {}
         self.edge_ids = {}
+        self.edge_to_tile = {} 
         self.node_autoinc = 0
         self.edge_autoinc = 0
         self.orientation = orientation
 
         if orientation == "pointy":
             self.directions = [
-                (1, -1, 0),  # E
-                (1, 0, -1),  # NE
-                (0, 1, -1),  # NW
-                (-1, 1, 0),  # W
-                (-1, 0, 1),  # SW
-                (0, -1, 1)   # SE
+                (1, 0, -1),   # EDGE_NE = 0
+                (1, -1, 0),   # EDGE_E  = 1
+                (0, -1, 1),   # EDGE_SE = 2
+                (-1, 0, 1),   # EDGE_SW = 3
+                (-1, 1, 0),   # EDGE_W  = 4
+                (0, 1, -1)    # EDGE_NW = 5
             ]
-        elif orientation == "flat":
-            self.directions = [
-                (1, -1, 0),  # E
-                (0, -1, 1),  # SE
-                (-1, 0, 1),  # SW
-                (-1, 1, 0),  # W
-                (0, 1, -1),  # NW
-                (1, 0, -1)   # NE
-            ]
+        #elif orientation == "flat":
+        #    self.directions = [
+        #        (0, -1, 1),   # EDGE_E  (0)
+        #        (1, -1, 0),   # EDGE_SE (1)
+        #        (1, 0, -1),   # EDGE_S  (2)
+        #        (0, 1, -1),   # EDGE_W  (3)
+        #        (-1, 1, 0),   # EDGE_NW (4)
+        #        (-1, 0, 1)    # EDGE_NE (5)
+        #    ]
         else:
             raise ValueError("orientation must be 'pointy' or 'flat'")
-
+        
     def add_tile(self, x, y, z, tile_type="blank"):
         tile = HexTile(self.tile_autoinc, x, y, z, tile_type)
         self.tiles[(x, y, z)] = tile
@@ -59,6 +94,7 @@ class HexMap(object):
                     tile_type = "sea" if distance == radius else "land"
                     self.add_tile(x, y, z, tile_type)
 
+
     def build_nodes_and_edges(self):
         dir_index = {d: i for i, d in enumerate(self.directions)}
 
@@ -71,16 +107,33 @@ class HexMap(object):
         next_edge_id = 0
         next_node_id = 0
 
-        for tile in self.tiles:
+        # --- Pass 1: assign unique edge IDs
+        for tile_coord in self.tiles:
             for dir_idx in range(6):
-                neighbor_tile = neighbor(tile, dir_idx)
+                neighbor_tile = neighbor(tile_coord, dir_idx)
                 if neighbor_tile in self.tiles:
-                    key = tuple(sorted([tile, neighbor_tile]))
+                    key = tuple(sorted([tile_coord, neighbor_tile]))
                 else:
-                    key = (tile, dir_idx)
+                    key = (tile_coord, dir_idx)
+
                 if key not in edge_id_map:
                     edge_id_map[key] = next_edge_id
                     next_edge_id += 1
+
+                    if isinstance(key[1], int):
+                        canonical_tile = tile_coord
+                        canonical_edge_idx = dir_idx
+                    else:
+                        ta, tb = key
+                        canonical_tile = min(ta, tb)
+                        if canonical_tile == tile_coord:
+                            canonical_edge_idx = dir_idx
+                        else:
+                            reverse_idx = (dir_idx + 3) % 6
+                            canonical_edge_idx = reverse_idx
+                            canonical_tile = neighbor_tile
+
+                    self.edge_to_tile[edge_id_map[key]] = (canonical_tile, canonical_edge_idx)
 
         def edge_id(a, d_or_b):
             if isinstance(d_or_b, int):
@@ -89,59 +142,37 @@ class HexMap(object):
                 key = tuple(sorted([a, d_or_b]))
             return edge_id_map[key]
 
-        # build_nodes_and_edges
-
+        # --- Pass 2: assign edges and nodes explicitly according to NODE_x / EDGE_x convention
         for tile_coord, tile in self.tiles.items():
             tile_edges = []
-            corner_node_ids = set()
+            corner_node_ids = []
 
             for i in range(6):
                 neighbor_tile = neighbor(tile_coord, i)
                 eid = edge_id(tile_coord, neighbor_tile if neighbor_tile in self.tiles else i)
                 tile_edges.append(eid)
 
+            # Now assign nodes: for each NODE_i (corner i), define it as the node between edges (i-1, i)
             for i in range(6):
-                j = (i+1) % 6
-                A = tile_coord
-                B = neighbor(A, i)
-                C = neighbor(A, j)
-                has_B = B in self.tiles
-                has_C = C in self.tiles
+                prev_edge_idx = (i - 1) % 6
+                curr_edge_idx = i
+                edges_at_corner = [tile_edges[prev_edge_idx], tile_edges[curr_edge_idx]]
 
-                edges = [
-                    edge_id(A, B if has_B else i),
-                    edge_id(A, C if has_C else j)
-                ]
-
-                if has_B and has_C:
-                    k = tuple(sorted([B, C]))
-                    if k in edge_id_map:
-                        edges.append(edge_id_map[k])
-                elif has_B:
-                    diff = (C[0]-B[0], C[1]-B[1], C[2]-B[2])
-                    if diff in dir_index:
-                        idx = dir_index[diff]
-                        edges.append(edge_id(B, idx))
-                elif has_C:
-                    diff = (B[0]-C[0], B[1]-C[1], B[2]-C[2])
-                    if diff in dir_index:
-                        idx = dir_index[diff]
-                        edges.append(edge_id(C, idx))
-
-                key = tuple(sorted(set(edges)))
+                key = tuple(sorted(edges_at_corner))
                 if key not in node_id_map:
                     node_id_map[key] = next_node_id
                     next_node_id += 1
 
-                corner_node_ids.add(node_id_map[key])
+                corner_node_ids.append(node_id_map[key])
 
             tile.edges = tile_edges
-            tile.nodes = list(corner_node_ids)
+            tile.nodes = corner_node_ids
 
         self.node_ids = node_id_map
         self.edge_ids = edge_id_map
         self.node_autoinc = next_node_id
         self.edge_autoinc = next_edge_id
+
 
 def gotoxy(x, y):
     sys.stdout.write("\033[%d;%dH" % (y + 1, x + 1))
@@ -168,6 +199,65 @@ def draw_tile(tile, col, row, highlight=False):
 
     sys.stdout.flush()
 
+def draw_road(tile, edge_idx, col, row):
+    sys.stdout.write("\033[34m")
+    road_width = (TILE_WIDTH - 3) // 2
+
+    dir_labels = {
+        HexMap.EDGE_E: "|E",
+        HexMap.EDGE_NE: "=NE=",
+        HexMap.EDGE_NW: "=NW=",
+        HexMap.EDGE_W: "|W",
+        HexMap.EDGE_SW: "=SW=",
+        HexMap.EDGE_SE: "=SE="
+    }
+
+    label = dir_labels.get(edge_idx, "====")[:road_width]
+    if edge_idx == HexMap.EDGE_E:
+        gotoxy(col + TILE_WIDTH - 1, row + 1)
+        sys.stdout.write(label)
+    elif edge_idx == HexMap.EDGE_W:
+        gotoxy(col, row + 1)
+        sys.stdout.write(label)
+    elif edge_idx == HexMap.EDGE_NE:
+        gotoxy(col + 1 + (TILE_WIDTH // 2), row)
+        sys.stdout.write(label)
+    elif edge_idx == HexMap.EDGE_NW:
+        gotoxy(col + 1, row)
+        sys.stdout.write(label)
+    elif edge_idx == HexMap.EDGE_SW:
+        gotoxy(col + 1, row + 2)
+        sys.stdout.write(label)
+    elif edge_idx == HexMap.EDGE_SE:
+        gotoxy(col + 1 + (TILE_WIDTH // 2), row + 2)
+        sys.stdout.write(label)
+
+    sys.stdout.write("\033[0m")
+    sys.stdout.flush()
+
+def draw_node(tile, node_idx, col, row):
+    sys.stdout.write("\033[91m")
+    if node_idx == HexMap.NODE_N:
+        gotoxy(col + TILE_WIDTH // 2, row)
+        sys.stdout.write("+")
+    elif node_idx == HexMap.NODE_NE:
+        gotoxy(col + TILE_WIDTH - 1, row)
+        sys.stdout.write("+")
+    elif node_idx == HexMap.NODE_SE:
+        gotoxy(col + TILE_WIDTH - 1, row + 2)
+        sys.stdout.write("+")
+    elif node_idx == HexMap.NODE_S:
+        gotoxy(col + TILE_WIDTH // 2, row + 2)
+        sys.stdout.write("+")
+    elif node_idx == HexMap.NODE_SW:
+        gotoxy(col, row + 2)
+        sys.stdout.write("+")
+    elif node_idx == HexMap.NODE_NW:
+        gotoxy(col, row)
+        sys.stdout.write("+")
+    sys.stdout.write("\033[0m")
+    sys.stdout.flush()
+
 def compute_bounds(hexmap):
     min_q = min(tile.x for tile in hexmap.tiles.values())
     max_q = max(tile.x for tile in hexmap.tiles.values())
@@ -177,7 +267,6 @@ def compute_bounds(hexmap):
 
 def get_map_screen_size(hexmap):
     min_q, max_q, min_r, max_r = compute_bounds(hexmap)
-
     cols = []
     rows = []
 
@@ -211,6 +300,71 @@ def render_coordinates(hexmap):
         col, row = get_tile_screen_pos(tile, hexmap)
         draw_tile(tile, col, row)
 
+def road_walk(hexmap, steps=10):
+    visited = set()
+    edges = list(hexmap.edge_ids.values())
+    if not edges:
+        return
+
+    edge = random.choice(edges)
+    tile_coord, edge_idx = hexmap.edge_to_tile[edge]
+    tile = hexmap.tiles[tile_coord]
+    
+
+    for _ in range(steps):
+        col, row = get_tile_screen_pos(tile, hexmap)
+        draw_road(tile, edge_idx, col, row)
+
+        draw_node(tile, edge_idx, col, row)
+        #draw_node(tile, node_idx_b, col, row)
+
+        visited.add(edge)
+
+        candidates = []
+
+        # Look for neighbor tile across this edge
+        dx, dy, dz = hexmap.directions[edge_idx]
+        neighbor_coord = (tile.x + dx, tile.y + dy, tile.z + dz)
+
+        chosen_node = None
+
+        if neighbor_coord in hexmap.tiles:
+            neighbor_tile = hexmap.tiles[neighbor_coord]
+            neighbor_edge_idx = (edge_idx + 3) % 6  # Opposite edge on neighbor
+
+            # Nodes at shared edge:
+            shared_node_a = neighbor_tile.nodes[neighbor_edge_idx]
+            shared_node_b = neighbor_tile.nodes[(neighbor_edge_idx + 1) % 6]
+
+            # Check all neighbor edges connected to shared nodes
+            for idx, e in enumerate(neighbor_tile.edges):
+                if e in visited:
+                    continue
+                node1 = neighbor_tile.nodes[idx]
+                node2 = neighbor_tile.nodes[(idx + 1) % 6]
+                if shared_node_a in (node1, node2) or shared_node_b in (node1, node2):
+                    node_used = shared_node_a if shared_node_a in (node1, node2) else shared_node_b
+                    candidates.append((neighbor_tile, idx, e, node_used))
+
+        # Fallback: check adjacent edges on current tile
+        for delta in [-1, 1]:
+            next_idx = (edge_idx + delta) % 6
+            next_edge = tile.edges[next_idx]
+            if next_edge not in visited:
+                # Pick node that connects to current edge
+                next_node = tile.nodes[edge_idx] if delta == -1 else tile.nodes[(edge_idx + 1) % 6]
+                candidates.append((tile, next_idx, next_edge, next_node))
+
+        if not candidates:
+            break
+
+        tile, edge_idx, edge, chosen_node = random.choice(candidates)
+
+        # Draw the chosen node at current tile position
+        #col, row = get_tile_screen_pos(tile, hexmap)
+        #draw_node(tile,chosen_node, col, row)
+
+
 if __name__ == "__main__":
     sys.stdout.write("\033[2J")
     sys.stdout.flush()
@@ -241,6 +395,33 @@ if __name__ == "__main__":
         selected_nodes.update(tile.nodes)
         selected_edges.update(tile.edges)
 
+    road_walk(hexmap, steps=7)
+
+    # --- Custom test: draw NW road and N node on tile (0,3,-3)
+
+    #test_coord = (0, 3, -3)
+    #if test_coord in hexmap.tiles:
+    #    tile = hexmap.tiles[test_coord]
+    #    col, row = get_tile_screen_pos(tile, hexmap)
+    #
+    #    edge_idx = hexmap.EDGE_W # NW, NE, E, SE, SW, W edge
+    #    node_idx = hexmap.NODE_SW  # N, NE, NW, S, SE, SW node
+    #
+    #    draw_road(tile, edge_idx, col, row)
+    #    draw_node(tile, node_idx, col, row)
+
+    # --- Custom test: draw NW road and N node on tile (0,3,-3)
+    #test_coord = (-1, 3, -2)
+    #if test_coord in hexmap.tiles:
+    #    tile = hexmap.tiles[test_coord]
+    #    col, row = get_tile_screen_pos(tile, hexmap)
+    #
+    #    edge_idx = hexmap.EDGE_W # NW, NE, E, SE, SW, W edge
+    #    node_idx = hexmap.NODE_SW  # N, NE, NW, S, SE, SW node
+    #
+    #    draw_road(tile, edge_idx, col, row)
+    #    draw_node(tile, node_idx, col, row)
+       
     width, height = get_map_screen_size(hexmap)
     gotoxy(0, height)
 
@@ -249,3 +430,11 @@ if __name__ == "__main__":
     print("Edges in selection: %d unique" % len(selected_edges))
     print("All Nodes (global): %d total" % len(hexmap.node_ids))
     print("All Edges (global): %d total" % len(hexmap.edge_ids))
+
+    #for tile_coord, tile in hexmap.tiles.items():
+    #    print("Tile %s nodes:" % str(tile_coord))
+    #    for idx, node in enumerate(tile.nodes):
+    #        print("  Node idx %d = global node id %d" % (idx, node))
+    #        print("Tile %s edges:" % str(tile_coord))
+    #    for idx, edge in enumerate(tile.edges):
+    #        print("  Edge idx %d = global edge id %d" % (idx, edge))
