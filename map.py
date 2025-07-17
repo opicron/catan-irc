@@ -447,6 +447,55 @@ def compute_longest_road_simple(hexmap, player_id):
     return longest
 
 
+def find_surrounding_tiles_and_nodes(hexmap, edge_id, debug=False):
+    WHITE = "\033[37m"
+    YELLOW = "\033[33m"
+    GREEN = "\033[32m"
+
+    if edge_id not in hexmap.edge_to_tile:
+        return []
+
+    tile_coord, edge_idx = hexmap.edge_to_tile[edge_id]
+    tile = hexmap.tiles[tile_coord]
+
+    n1 = tile.nodes[edge_idx]
+    n2 = tile.nodes[(edge_idx + 1) % 6]
+
+    candidate_nodes = []
+
+    # --- Compute candidate nodes first (no drawing yet)
+    for node in [n1, n2]:
+        for neighbor_tile_coord, neighbor_tile in hexmap.tiles.items():
+            for i in range(6):
+                e = neighbor_tile.edges[i]
+                ni = neighbor_tile.nodes[i]
+                ni_next = neighbor_tile.nodes[(i + 1) % 6]
+
+                if e == edge_id:
+                    continue  # Skip the input edge itself
+
+                if node in (ni, ni_next):
+                    candidate_nodes.append((neighbor_tile, node, i))
+
+    # --- Debug visualization at end:
+    if debug:
+        drawn_tiles = set()
+
+        # Draw all tiles first:
+        for neighbor_tile, _, _ in candidate_nodes:
+            if neighbor_tile not in drawn_tiles:
+                col, row = get_tile_screen_pos(neighbor_tile, hexmap)
+                draw_tile(neighbor_tile, col, row, color=GREEN)
+                drawn_tiles.add(neighbor_tile)
+
+        # Then draw all nodes:
+        for neighbor_tile, _, edge_idx in candidate_nodes:
+            col, row = get_tile_screen_pos(neighbor_tile, hexmap)
+            draw_node(neighbor_tile, edge_idx, col, row, color=YELLOW)
+            draw_node(neighbor_tile, (edge_idx + 1) % 6, col, row, color=YELLOW)
+
+    return candidate_nodes  # list of (tile, node_id, local_edge_idx)
+
     """
     Find all surrounding tiles and nodes where a road connected to a given edge can attach.
 
@@ -493,7 +542,7 @@ def compute_longest_road_simple(hexmap, player_id):
     for node_idx, tile in nodes:
         print("Node %d on tile (%d, %d, %d)" % (node_idx, tile.x, tile.y, tile.z))
     """
-def find_surrounding_tiles_and_nodes(hexmap, edge, debug=False):
+def find_surrounding_tiles_and_nodes_old(hexmap, edge, debug=False):
     WHITE = "\033[37m"
     YELLOW = "\033[33m"
     RED = "\033[31m"
@@ -673,6 +722,30 @@ def verify_edge_id_consistency(hexmap):
         print("Edge ID inconsistencies detected! Check your build_nodes_and_edges edge assignment.")
 
 
+def check_degenerate_edges(hexmap):
+    print("\nChecking degenerate edges (same node on both ends)...")
+
+    degenerate_edges = []
+
+    for edge_id in hexmap.edge_ids.values():
+        tile_coord, edge_idx = hexmap.edge_to_tile[edge_id]
+        tile = hexmap.tiles[tile_coord]
+
+        n1 = tile.nodes[edge_idx]
+        n2 = tile.nodes[(edge_idx + 1) % 6]
+
+        if n1 == n2:
+            degenerate_edges.append((edge_id, tile_coord, edge_idx))
+
+    if not degenerate_edges:
+        print("No degenerate edges found.")
+    else:
+        print("Degenerate edges detected:")
+        for edge_id, tile_coord, edge_idx in degenerate_edges:
+            print("  Edge ID %d on tile %s at index %d (nodes %d-%d)" %
+                  (edge_id, str(tile_coord), edge_idx, tile.nodes[edge_idx], tile.nodes[(edge_idx + 1) % 6]))
+            
+
 if __name__ == "__main__":
     sys.stdout.write("\033[2J")
     sys.stdout.flush()
@@ -740,6 +813,8 @@ if __name__ == "__main__":
 
     verify_node_id_consistency(hexmap)
     verify_edge_id_consistency(hexmap)
+    check_degenerate_edges(hexmap)
+
 
     for edge_id_owner in hexmap.road_owners.items():
         edge_id = edge_id_owner[0]
@@ -751,18 +826,8 @@ if __name__ == "__main__":
         print("Edge %d (%s, edge %d) -> nodes %d, %d, owner=%s" % (
             edge_id, str(tile_coord), edge_idx, n1, n2, str(owner)
         ))
+
     # --- Custom test: draw NW road and N node on tile (0,3,-3)
-
-    print("Checking degenerate edges (same node on both ends)...")
-    for tile in hexmap.tiles.values():
-        for i in range(6):
-            n1 = tile.nodes[i]
-            n2 = tile.nodes[(i + 1) % 6]
-            if n1 == n2:
-                print("Degenerate edge at tile %s edge %d nodes %d-%d (edge id %d)" % (
-                    str((tile.x, tile.y, tile.z)), i, n1, n2, tile.edges[i]
-                ))
-
     #test_coord = (0, 3, -3)
     #if test_coord in hexmap.tiles:
     #    tile = hexmap.tiles[test_coord]
