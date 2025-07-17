@@ -417,6 +417,35 @@ def compute_longest_road_strict(hexmap, player_id):
 
     return longest
 
+def compute_longest_road_simple(hexmap, player_id):
+    G = nx.Graph()
+
+    # Build graph: nodes = global node IDs, edges = player roads
+    for edge_id, owner in hexmap.road_owners.items():
+        if owner != player_id:
+            continue
+
+        tile_coord, edge_idx = hexmap.edge_to_tile[edge_id]
+        tile = hexmap.tiles[tile_coord]
+        n1 = tile.nodes[edge_idx]
+        n2 = tile.nodes[(edge_idx + 1) % 6]
+
+        if n1 != n2:
+            G.add_edge(n1, n2)
+
+    # Compute longest simple path
+    if not G:
+        return 0
+
+    longest = 0
+    for node in G.nodes():
+        lengths = nx.single_source_dijkstra_path_length(G, node)
+        max_len = max(lengths.values())
+        if max_len > longest:
+            longest = max_len
+
+    return longest
+
 
     """
     Find all surrounding tiles and nodes where a road connected to a given edge can attach.
@@ -649,7 +678,7 @@ if __name__ == "__main__":
     sys.stdout.flush()
 
     hexmap = HexMap()
-    hexmap.generate_default_map(radius=1)
+    hexmap.generate_default_map(radius=2)
     hexmap.build_nodes_and_edges()
 
     WHITE = "\033[37m"
@@ -703,7 +732,11 @@ if __name__ == "__main__":
     gotoxy(0, height)
 
     length = compute_longest_road_strict(hexmap, 1)
-    print("\nLongest road for player 1: %d tiles" % length)
+    print("\nstrict Longest road for player 1: %d tiles" % length)
+
+    length = compute_longest_road_simple(hexmap, 1)
+    print("simple nLongest road for player 1: %d tiles" % length)
+
 
     verify_node_id_consistency(hexmap)
     verify_edge_id_consistency(hexmap)
