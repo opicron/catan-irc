@@ -17,22 +17,6 @@ class HexTile(object):
 
 class HexMap(object):
 
-    # --- Directional edge indices
-    #EDGE_E = 0
-    #EDGE_NE = 1
-    #EDGE_NW = 2
-    #EDGE_W = 3
-    #EDGE_SW = 4
-    #EDGE_SE = 5
-
-    # --- Corner node indices
-    #NODE_N = 0
-    #NODE_NE = 1
-    #NODE_SE = 2
-    #NODE_S = 3
-    #NODE_SW = 4
-    #NODE_NW = 5
-
     # Node indices (clockwise starting at top)
     NODE_N  = 0  # Node 0 (Top / North)
     NODE_NE = 1  # Node 1
@@ -42,11 +26,11 @@ class HexMap(object):
     NODE_NW = 5  # Node 5
 
     # Edge indices (clockwise, start at top between NODE_0 and NODE_1)
-    EDGE_NE  = 0  # Edge 0
-    EDGE_E = 1  # Edge 1
+    EDGE_NE = 0  # Edge 0
+    EDGE_E  = 1  # Edge 1
     EDGE_SE = 2  # Edge 2
-    EDGE_SW  = 3  # Edge 3
-    EDGE_W = 4  # Edge 4
+    EDGE_SW = 3  # Edge 3
+    EDGE_W  = 4  # Edge 4
     EDGE_NW = 5  # Edge 5
 
     def __init__(self, orientation="pointy"):
@@ -204,18 +188,18 @@ def draw_road(tile, edge_idx, col, row):
     road_width = (TILE_WIDTH - 3) // 2
 
     dir_labels = {
-        #HexMap.EDGE_E: "|E",
-        #HexMap.EDGE_NE: "=NE=",
-        #HexMap.EDGE_NW: "=NW=",
-        #HexMap.EDGE_W: "|W",
-        #HexMap.EDGE_SW: "=SW=",
-        #HexMap.EDGE_SE: "=SE="
-        HexMap.EDGE_E: "|",
-        HexMap.EDGE_NE: "====",
-        HexMap.EDGE_NW: "====",
-        HexMap.EDGE_W: "|",
-        HexMap.EDGE_SW: "====",
-        HexMap.EDGE_SE: "===="
+        HexMap.EDGE_E: "|E",
+        HexMap.EDGE_NE: "=NE=",
+        HexMap.EDGE_NW: "=NW=",
+        HexMap.EDGE_W: "|W",
+        HexMap.EDGE_SW: "=SW=",
+        HexMap.EDGE_SE: "=SE="
+        #HexMap.EDGE_E: "|",
+        #HexMap.EDGE_NE: "====",
+        #HexMap.EDGE_NW: "====",
+        #HexMap.EDGE_W: "|",
+        #HexMap.EDGE_SW: "====",
+        #HexMap.EDGE_SE: "===="
     }
 
     label = dir_labels.get(edge_idx, "====")[:road_width]
@@ -241,8 +225,13 @@ def draw_road(tile, edge_idx, col, row):
     sys.stdout.write("\033[0m")
     sys.stdout.flush()
 
-def draw_node(tile, node_idx, col, row):
-    sys.stdout.write("\033[91m")
+def draw_node(tile, node_idx, col, row, color=None):
+
+    if color == None:
+        sys.stdout.write("\033[91m") #bright red
+    else:
+        sys.stdout.write(color)
+
     if node_idx == HexMap.NODE_N:
         gotoxy(col + TILE_WIDTH // 2, row)
         sys.stdout.write("+")
@@ -302,7 +291,7 @@ def get_tile_screen_pos(tile, hexmap):
     return col, row
 
 
-def road_walk(hexmap, steps=10):
+def road_walk_old(hexmap, steps=10):
     import time
     visited = set()
     visited_nodes = set()
@@ -315,20 +304,20 @@ def road_walk(hexmap, steps=10):
     tile_coord, edge_idx = hexmap.edge_to_tile[edge]
     tile = hexmap.tiles[tile_coord]
 
+    # --- Defensive fix: explicitly mark first edge's nodes as visited BEFORE loop
+    node_a = hexmap.tiles[tile_coord].nodes[edge_idx]
+    node_b = hexmap.tiles[tile_coord].nodes[(edge_idx + 1) % 6]
+    visited_nodes.update([node_a, node_b])
+
     for _ in range(steps):
         # Draw current edge
         col, row = get_tile_screen_pos(tile, hexmap)
         draw_road(tile, edge_idx, col, row)
 
-        node_a = tile.nodes[edge_idx]
-        node_b = tile.nodes[(edge_idx + 1) % 6]
-
         draw_node(tile, edge_idx, col, row)
         draw_node(tile, (edge_idx + 1) % 6, col, row)
 
-        # Mark as visited
         visited.add(edge)
-        visited_nodes.update([node_a, node_b])
 
         candidates = []
 
@@ -349,12 +338,11 @@ def road_walk(hexmap, steps=10):
                 n1 = neighbor_tile.nodes[idx]
                 n2 = neighbor_tile.nodes[(idx + 1) % 6]
                 if shared_node_a in (n1, n2) or shared_node_b in (n1, n2):
-                    # New strict condition: allow only if not both nodes visited
-                    if not (n1 in visited_nodes or n2 in visited_nodes):
+                    if not (n1 in visited_nodes and n2 in visited_nodes):
                         node_used = shared_node_a if shared_node_a in (n1, n2) else shared_node_b
                         candidates.append((neighbor_tile, idx, e, node_used))
 
-        # --- Global fallback: search all visited_nodes globally
+        # --- Global fallback search
         if not candidates:
             for node in visited_nodes:
                 for t_coord, t in hexmap.tiles.items():
@@ -365,18 +353,239 @@ def road_walk(hexmap, steps=10):
                         n1 = t.nodes[i]
                         n2 = t.nodes[(i + 1) % 6]
                         if node in (n1, n2):
-                            # Strict check: reject if both nodes already visited
                             if not (n1 in visited_nodes and n2 in visited_nodes):
                                 candidates.append((t, i, e, node))
 
         if not candidates:
             break  # No valid next step, terminate gracefully
 
-        # Choose next step randomly from valid candidates
         tile, edge_idx, edge, chosen_node = random.choice(candidates)
 
-        time.sleep(0.2)
+        visited_nodes.update([tile.nodes[edge_idx], tile.nodes[(edge_idx + 1) % 6]])
 
+        time.sleep(0.1)
+
+
+def node_walker(hexmap, steps=10):
+    import time
+    visited_nodes = set()
+
+    # STEP 1: Start from random edge
+    edge = random.choice(list(hexmap.edge_ids.values()))
+    tile_coord, edge_idx = hexmap.edge_to_tile[edge]
+    tile = hexmap.tiles[tile_coord]
+
+    node_a = tile.nodes[edge_idx]
+    node_b = tile.nodes[(edge_idx + 1) % 6]
+    visited_nodes.update([node_a, node_b])
+
+    # Draw initial edge and nodes
+    col, row = get_tile_screen_pos(tile, hexmap)
+    draw_road(tile, edge_idx, col, row)
+    draw_node(tile, edge_idx, col, row)
+    draw_node(tile, (edge_idx + 1) % 6, col, row)
+
+    current_node = node_a  # Start from one of the two nodes
+    step = 1
+
+    while step <= steps:
+        # Find all tiles that contain this node
+        candidate_tiles = []
+        for t_coord, t in hexmap.tiles.items():
+            if current_node in t.nodes:
+                candidate_tiles.append((t_coord, t))
+
+        next_move_found = False
+        for t_coord, t in candidate_tiles:
+            for i in range(6):
+                n1 = t.nodes[i]
+                n2 = t.nodes[(i + 1) % 6]
+                if current_node in (n1, n2):
+                    if not (n1 in visited_nodes and n2 in visited_nodes):
+                        # Found a next edge that touches current_node
+                        col, row = get_tile_screen_pos(t, hexmap)
+                        draw_road(t, i, col, row)
+                        draw_node(t, i, col, row)
+                        draw_node(t, (i + 1) % 6, col, row)
+
+                        visited_nodes.update([n1, n2])
+                        # Pick one of these as next current_node
+                        current_node = n2 if current_node == n1 else n1
+                        next_move_found = True
+                        break
+            if next_move_found:
+                break
+
+        if not next_move_found:
+            # Fallback: look for neighbor tiles geometrically around current node
+            # This happens if we hit a corner edge at map boundary
+            for node_idx in range(6):
+                if current_node in tile.nodes:
+                    idx_in_tile = tile.nodes.index(current_node)
+                    neighbor_tiles = node_neighbor_tiles(tile_coord, idx_in_tile, hexmap)
+                    for neighbor_coord in neighbor_tiles:
+                        if neighbor_coord not in hexmap.tiles:
+                            continue
+                        neighbor_tile = hexmap.tiles[neighbor_coord]
+                        for i in range(6):
+                            n1 = neighbor_tile.nodes[i]
+                            n2 = neighbor_tile.nodes[(i + 1) % 6]
+                            if current_node in (n1, n2):
+                                if not (n1 in visited_nodes and n2 in visited_nodes):
+                                    col, row = get_tile_screen_pos(neighbor_tile, hexmap)
+                                    draw_road(neighbor_tile, i, col, row)
+                                    draw_node(neighbor_tile, i, col, row)
+                                    draw_node(neighbor_tile, (i + 1) % 6, col, row)
+
+                                    visited_nodes.update([n1, n2])
+                                    current_node = n2 if current_node == n1 else n1
+                                    next_move_found = True
+                                    break
+                        if next_move_found:
+                            break
+            if not next_move_found:
+                break  # Completely stuck; exit loop
+
+        step += 1
+        time.sleep(0.1)
+
+
+def node_neighbor_tiles(tile_coord, node_idx, hexmap):
+    d1 = hexmap.directions[node_idx]
+    neighbor1 = (tile_coord[0] + d1[0], tile_coord[1] + d1[1], tile_coord[2] + d1[2])
+
+    d2 = hexmap.directions[(node_idx - 1) % 6]
+    neighbor2 = (tile_coord[0] + d2[0], tile_coord[1] + d2[1], tile_coord[2] + d2[2])
+
+    return [neighbor1, neighbor2]
+
+
+    """
+    Find all surrounding tiles and nodes where a road connected to a given edge can attach.
+
+    Summary:
+    --------
+    Given a global edge ID, this function identifies neighboring tiles and node indices
+    that are adjacent to that edge and could serve as valid connection points for roads.
+
+    It works by:
+    1. Locating the tile and local edge index corresponding to the given global edge.
+    2. Checking neighbor tiles in the clockwise and counterclockwise directions around the edge.
+    3. Adding node candidates from these neighbors based on relative positions.
+    4. If insufficient candidates are found (e.g. at a map edge), fallback nodes from the
+       current tile are included.
+    5. Handling special directional cases (e.g. EDGE_E and EDGE_W neighbors).
+    6. Optionally rendering debug highlights if debug=True.
+
+    Parameters:
+    -----------
+    hexmap : HexMap
+        The hex map containing tiles, edges, nodes, and directional info.
+
+    edge : int
+        The global edge ID for which to find surrounding nodes.
+
+    debug : bool (default False)
+        If True, visually highlights the involved tiles and nodes for inspection.
+
+    Returns:
+    --------
+    candidate_nodes : list of (node_idx, tile) tuples
+        A list of node indices and corresponding tile objects where attachment is possible.
+
+    Notes:
+    ------
+    - Neighbor relationships are determined geometrically based on hex directions.
+    - Handles map boundaries gracefully by falling back to local tile nodes.
+    - Designed for pointy-top hex orientation.
+
+    Example:
+    --------
+    edge = random.choice(list(hexmap.edge_ids.values()))
+    nodes = find_surrounding_tiles_and_nodes(hexmap, edge, debug=True)
+    for node_idx, tile in nodes:
+        print("Node %d on tile (%d, %d, %d)" % (node_idx, tile.x, tile.y, tile.z))
+    """
+def find_surrounding_tiles_and_nodes(hexmap, edge, debug=False):
+    WHITE = "\033[37m"
+    YELLOW = "\033[33m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+
+    candidate_nodes = []  # Now list of (tile, node_idx, direction_idx)
+
+    tile_coord, edge_idx = hexmap.edge_to_tile[edge]
+    #tile_coord = (-3,1,2)
+    #edge_idx = hexmap.EDGE_NW  # Example edge for testing
+
+    tile = hexmap.tiles[tile_coord]
+
+    # --- 1st neighboring tile
+    direction = hexmap.directions[(edge_idx+1)%6]
+    neighbor_coord = (tile.x + direction[0], tile.y + direction[1], tile.z + direction[2])
+    if neighbor_coord in hexmap.tiles:
+        tile_a = hexmap.tiles[neighbor_coord]
+        if debug:
+            draw_tile(tile_a, *get_tile_screen_pos(tile_a, hexmap), color=YELLOW)
+        node_a_idx_1 = (((edge_idx+3) % 6) + 1) % 6
+        node_a_idx_2 = (((edge_idx+3) % 6) + 3) % 6
+        candidate_nodes.append((tile_a, node_a_idx_1, node_a_idx_1))
+        candidate_nodes.append((tile_a, node_a_idx_2, (node_a_idx_2 -1) % 6))
+
+    # --- 2nd neighboring tile
+    direction = hexmap.directions[(edge_idx-1)%6]
+    neighbor_coord = (tile.x + direction[0], tile.y + direction[1], tile.z + direction[2])
+    if neighbor_coord in hexmap.tiles:
+        tile_b = hexmap.tiles[neighbor_coord]
+        if debug:
+            draw_tile(tile_b, *get_tile_screen_pos(tile_b, hexmap), color=YELLOW)
+        node_b_idx_1 = (edge_idx+1) % 6
+        node_b_idx_2 = (edge_idx+3) % 6
+        candidate_nodes.append((tile_b, node_b_idx_1, node_b_idx_1))
+        candidate_nodes.append((tile_b, node_b_idx_2, (node_b_idx_2-1)%6))
+
+    # --- Fallback: current tile nodes if too few found
+    if len(candidate_nodes) < 4:
+        if debug:
+            draw_tile(tile, *get_tile_screen_pos(tile, hexmap), color=GREEN)
+        fallback_node_1 = (edge_idx-1)%6
+        fallback_node_2 = (edge_idx+2)%6
+        candidate_nodes.append((tile, fallback_node_1, fallback_node_1))
+        candidate_nodes.append((tile, fallback_node_2, (fallback_node_2-1) %6))
+
+        # Check special cases for E/W/NW/NE edges
+        neighbors = [
+            (hexmap.EDGE_E, 1, 'east'),
+            (hexmap.EDGE_W, 4, 'west'),
+            (hexmap.EDGE_NW, 5, 'nw'),
+            (hexmap.EDGE_NE, 0, 'ne')
+        ]
+
+        for edge_type, dir_idx, label in neighbors:
+            if edge_idx == edge_type:
+                d = hexmap.directions[dir_idx]
+                neighbor_coord = (tile.x + d[0], tile.y + d[1], tile.z + d[2])
+                neighbor_tile = hexmap.tiles.get(neighbor_coord)
+                if neighbor_tile:
+                    idx1 = (((edge_idx+3) % 6) + 5) % 6
+                    idx2 = (((edge_idx+3) % 6) + 2) % 6
+                    candidate_nodes.append((neighbor_tile, idx1, idx1))
+                    candidate_nodes.append((neighbor_tile, idx2, (idx2-1)%6))
+                    if debug:
+                        draw_tile(neighbor_tile, *get_tile_screen_pos(neighbor_tile, hexmap), color=RED)
+
+    # Debug draw central tile and edge
+    if debug:
+        draw_road(tile, edge_idx, *get_tile_screen_pos(tile, hexmap))
+        draw_node(tile, edge_idx, *get_tile_screen_pos(tile, hexmap))
+        draw_node(tile, (edge_idx+1) % 6, *get_tile_screen_pos(tile, hexmap))
+
+    # Debug draw all candidate nodes
+    if debug:
+        for node_tile, node_idx, _ in candidate_nodes:
+            draw_node(node_tile, node_idx, *get_tile_screen_pos(node_tile, hexmap), color=WHITE)
+
+    return candidate_nodes  # Now contains (tile, node_idx, direction_idx)
 
 
 
@@ -384,10 +593,11 @@ if __name__ == "__main__":
     sys.stdout.write("\033[2J")
     sys.stdout.flush()
 
-    hexmap = HexMap(orientation="pointy")
-    hexmap.generate_default_map(radius=3)
+    hexmap = HexMap()
+    hexmap.generate_default_map(radius=1)
     hexmap.build_nodes_and_edges()
 
+    WHITE = "\033[37m"
     YELLOW = "\033[33m"
     RED = "\033[31m"
     GREEN = "\033[32m"
@@ -398,6 +608,8 @@ if __name__ == "__main__":
         draw_tile(tile, col, row, GREY)
 
 
+    #get neighboring tiles
+
     center = (0, 0, 0)
     neighbors = set()
     for dx, dy, dz in hexmap.directions:
@@ -406,19 +618,27 @@ if __name__ == "__main__":
             neighbors.add(neighbor)
     neighbors.add(center)
 
+    # draw neighboring tiles
     for coord in neighbors:
         tile = hexmap.tiles[coord]
         col, row = get_tile_screen_pos(tile, hexmap)
         draw_tile(tile, col, row, GREY)
 
-    selected_nodes = set()
-    selected_edges = set()
-    for coord in neighbors:
-        tile = hexmap.tiles[coord]
-        selected_nodes.update(tile.nodes)
-        selected_edges.update(tile.edges)
 
-    road_walk(hexmap, steps=10)
+    #walk_road(hexmap, steps=10)
+    #node_walker(hexmap, steps=3)
+
+    # surrounding tiles and nodes for a random edge
+    edges = list(hexmap.edge_ids.values())
+    edge = random.choice(edges)
+    candidate_nodes = find_surrounding_tiles_and_nodes(hexmap, edge, debug=True)
+
+    for tile, node_idx, dir_idx in candidate_nodes:
+        #draw_node(tile, node_idx, *get_tile_screen_pos(tile, hexmap))
+        draw_road(tile, dir_idx, *get_tile_screen_pos(tile, hexmap))
+
+    width, height = get_map_screen_size(hexmap)
+    gotoxy(0, height)
 
     # --- Custom test: draw NW road and N node on tile (0,3,-3)
 
@@ -426,10 +646,8 @@ if __name__ == "__main__":
     #if test_coord in hexmap.tiles:
     #    tile = hexmap.tiles[test_coord]
     #    col, row = get_tile_screen_pos(tile, hexmap)
-    #
     #    edge_idx = hexmap.EDGE_W # NW, NE, E, SE, SW, W edge
     #    node_idx = hexmap.NODE_SW  # N, NE, NW, S, SE, SW node
-    #
     #    draw_road(tile, edge_idx, col, row)
     #    draw_node(tile, node_idx, col, row)
 
@@ -438,22 +656,25 @@ if __name__ == "__main__":
     #if test_coord in hexmap.tiles:
     #    tile = hexmap.tiles[test_coord]
     #    col, row = get_tile_screen_pos(tile, hexmap)
-    #
     #    edge_idx = hexmap.EDGE_W # NW, NE, E, SE, SW, W edge
     #    node_idx = hexmap.NODE_SW  # N, NE, NW, S, SE, SW node
-    #
     #    draw_road(tile, edge_idx, col, row)
     #    draw_node(tile, node_idx, col, row)
-       
-    width, height = get_map_screen_size(hexmap)
-    gotoxy(0, height)
 
-    print("\nTiles: %d" % hexmap.tile_autoinc)
-    print("Nodes in selection: %d unique" % len(selected_nodes))
-    print("Edges in selection: %d unique" % len(selected_edges))
-    print("All Nodes (global): %d total" % len(hexmap.node_ids))
-    print("All Edges (global): %d total" % len(hexmap.edge_ids))
+    # --- Debug print amount of nodes and edges
+    #selected_nodes = set()
+    #selected_edges = set()
+    #for coord in neighbors:
+    #    tile = hexmap.tiles[coord]
+    #    selected_nodes.update(tile.nodes)
+    #    selected_edges.update(tile.edges)
+    #print("\nTiles: %d" % hexmap.tile_autoinc)
+    #print("Nodes in selection: %d unique" % len(selected_nodes))
+    #print("Edges in selection: %d unique" % len(selected_edges))
+    #print("All Nodes (global): %d total" % len(hexmap.node_ids))
+    #print("All Edges (global): %d total" % len(hexmap.edge_ids))
 
+    # --- Debug print of all tiles, nodes and edges
     #for tile_coord, tile in hexmap.tiles.items():
     #    print("Tile %s nodes:" % str(tile_coord))
     #    for idx, node in enumerate(tile.nodes):
