@@ -183,10 +183,10 @@ def draw_road(tile, edge_idx, col, row):
     road_width = (TILE_WIDTH - 3) // 2
 
     dir_labels = {
-        HexMap.EDGE_E: "|E",
+        HexMap.EDGE_E: chr(186)+"E",
         HexMap.EDGE_NE: "=NE=",
         HexMap.EDGE_NW: "=NW=",
-        HexMap.EDGE_W: "|W",
+        HexMap.EDGE_W: chr(186)+"W",
         HexMap.EDGE_SW: "=SW=",
         HexMap.EDGE_SE: "=SE="
         #HexMap.EDGE_E: "|",
@@ -578,7 +578,7 @@ if __name__ == "__main__":
         col, row = get_tile_screen_pos(tile, hexmap)
         draw_tile(tile, col, row, GREY)
 
-    random_branching_road_walk(hexmap, player_id=1, steps=10)
+    random_branching_road_walk(hexmap, player_id=1, steps=20)
 
     # surrounding tiles and nodes for a random edge
     #edges = list(hexmap.edge_ids.values())
@@ -607,16 +607,16 @@ if __name__ == "__main__":
     check_degenerate_edges(hexmap)
 
 
-    for edge_id_owner in hexmap.road_owners.items():
-        edge_id = edge_id_owner[0]
-        owner = edge_id_owner[1]
-        tile_coord, edge_idx = hexmap.edge_to_tile[edge_id]
-        tile = hexmap.tiles[tile_coord]
-        n1 = tile.nodes[edge_idx]
-        n2 = tile.nodes[(edge_idx + 1) % 6]
-        print("Edge %d (%s, edge %d) -> nodes %d, %d, owner=%s" % (
-            edge_id, str(tile_coord), edge_idx, n1, n2, str(owner)
-        ))
+    #for edge_id_owner in hexmap.road_owners.items():
+    #    edge_id = edge_id_owner[0]
+    #    owner = edge_id_owner[1]
+    #    tile_coord, edge_idx = hexmap.edge_to_tile[edge_id]
+    #    tile = hexmap.tiles[tile_coord]
+    #    n1 = tile.nodes[edge_idx]
+    #    n2 = tile.nodes[(edge_idx + 1) % 6]
+    #    print("Edge %d (%s, edge %d) -> nodes %d, %d, owner=%s" % (
+    #        edge_id, str(tile_coord), edge_idx, n1, n2, str(owner)
+    #    ))
 
     # --- Custom test: draw NW road and N node on tile (0,3,-3)
     #test_coord = (0, 3, -3)
