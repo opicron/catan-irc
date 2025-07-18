@@ -360,8 +360,8 @@ def find_surrounding_tiles_and_nodes(hexmap, edge_id, debug=False):
         # Then draw all nodes:
         for neighbor_tile, _, edge_idx in candidate_nodes:
             col, row = get_tile_screen_pos(neighbor_tile, hexmap)
-            draw_node(neighbor_tile, edge_idx, col, row, color=YELLOW)
-            draw_node(neighbor_tile, (edge_idx + 1) % 6, col, row, color=YELLOW)
+            #draw_node(neighbor_tile, edge_idx, col, row, color=YELLOW)
+            #draw_node(neighbor_tile, (edge_idx + 1) % 6, col, row, color=YELLOW)
 
     return candidate_nodes  # list of (tile, node_id, local_edge_idx)
 
@@ -527,8 +527,8 @@ def random_branching_road_walk(hexmap, player_id=1, steps=20):
         # Draw it visually
         col, row = get_tile_screen_pos(tile, hexmap)
         draw_road(tile, edge_idx, col, row)
-        draw_node(tile, edge_idx, col, row)
-        draw_node(tile, (edge_idx + 1) % 6, col, row)
+        #draw_node(tile, edge_idx, col, row)
+        #draw_node(tile, (edge_idx + 1) % 6, col, row)
 
         # Store ownership
         hexmap.road_owners[edge_id] = player_id
@@ -540,12 +540,31 @@ def random_branching_road_walk(hexmap, player_id=1, steps=20):
         # Expand frontier
         frontier.append(new_node)
 
-        time.sleep(0.1)
+        #time.sleep(0.1)
+
+def get_boundary_nodes(hexmap):
+    boundary_nodes = set()
+
+    for tile_coord, tile in hexmap.tiles.items():
+        for dir_idx in range(6):
+            dx, dy, dz = hexmap.directions[dir_idx]
+            neighbor_coord = (tile.x + dx, tile.y + dy, tile.z + dz)
+
+            if neighbor_coord not in hexmap.tiles:
+                # This edge points outward -> nodes on this edge are boundary nodes
+                node_a = tile.nodes[dir_idx]
+                node_b = tile.nodes[(dir_idx + 1) % 6]
+
+                boundary_nodes.add(node_a)
+                boundary_nodes.add(node_b)
+
+    return boundary_nodes
 
 
 if __name__ == "__main__":
     sys.stdout.write("\033[2J")
     sys.stdout.flush()
+    gotoxy(0, 0)
 
     hexmap = HexMap()
     hexmap.generate_default_map(radius=2)
@@ -561,24 +580,32 @@ if __name__ == "__main__":
         col, row = get_tile_screen_pos(tile, hexmap)
         draw_tile(tile, col, row, GREY)
 
+    boundary_nodes = get_boundary_nodes(hexmap)
+
+    for tile in hexmap.tiles.values():
+        col, row = get_tile_screen_pos(tile, hexmap)
+        for idx, node_id in enumerate(tile.nodes):
+            if node_id in boundary_nodes:
+                draw_node(tile, idx, col, row, color=WHITE)  # White color
 
     #get neighboring tiles
 
-    center = (0, 0, 0)
-    neighbors = set()
-    for dx, dy, dz in hexmap.directions:
-        neighbor_tile = (center[0]+dx, center[1]+dy, center[2]+dz)
-        if neighbor_tile in hexmap.tiles:
-            neighbors.add(neighbor_tile)
-    neighbors.add(center)
+    #center = (0, 0, 0)
+    #neighbors = set()
+    #for dx, dy, dz in hexmap.directions:
+    #    neighbor_tile = (center[0]+dx, center[1]+dy, center[2]+dz)
+    #    if neighbor_tile in hexmap.tiles:
+    #        neighbors.add(neighbor_tile)
+    #neighbors.add(center)
 
     # draw neighboring tiles
-    for coord in neighbors:
-        tile = hexmap.tiles[coord]
-        col, row = get_tile_screen_pos(tile, hexmap)
-        draw_tile(tile, col, row, GREY)
+    #for coord in neighbors:
+    #    tile = hexmap.tiles[coord]
+    #    col, row = get_tile_screen_pos(tile, hexmap)
+    #    draw_tile(tile, col, row, GREY)
 
-    random_branching_road_walk(hexmap, player_id=1, steps=20)
+    random_branching_road_walk(hexmap, player_id=1, steps=1)
+    random_branching_road_walk(hexmap, player_id=1, steps=2)
 
     # surrounding tiles and nodes for a random edge
     #edges = list(hexmap.edge_ids.values())
@@ -600,11 +627,11 @@ if __name__ == "__main__":
     gotoxy(0, height)
 
     length = compute_longest_road_simple(hexmap, 1)
-    print("simple nLongest road for player 1: %d tiles" % length)
+    print("Longest road for player 1: %d tiles" % length)
 
-    verify_node_id_consistency(hexmap)
-    verify_edge_id_consistency(hexmap)
-    check_degenerate_edges(hexmap)
+    #verify_node_id_consistency(hexmap)
+    #verify_edge_id_consistency(hexmap)
+    #check_degenerate_edges(hexmap)
 
 
     #for edge_id_owner in hexmap.road_owners.items():
