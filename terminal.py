@@ -126,6 +126,20 @@ class Terminal(object):
             # Handle case where text can't be displayed
             pass
 
+    def setcolor(self, color_pair):
+        """Set the color for subsequent text output"""
+        try:
+            self.stdscr.attron(self.curses.color_pair(color_pair))
+        except self.curses.error:
+            pass
+
+    def resetcolor(self):
+        """Reset color to default"""
+        try:
+            self.stdscr.attrset(0)
+        except self.curses.error:
+            pass
+
     def clear(self):
         """Clear the entire screen"""
         try:

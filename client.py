@@ -33,7 +33,9 @@ class Client(SimpleIRCClient):
         # Get nickname from user using Terminal
         try:
             terminal = Terminal()
+            terminal.setcolor(terminal.COLOR_PAIR_YELLOW)
             self.nick = terminal.getstr("Enter your nickname: ").strip()
+            terminal.resetcolor()
         except (EOFError, KeyboardInterrupt):
             print("\nExiting...")
             sys.exit(0)

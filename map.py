@@ -6,6 +6,7 @@
 import sys
 import random
 import networkx as nx
+from terminal import Terminal
 
 
 TILE_WIDTH = 11
@@ -158,9 +159,8 @@ class HexMap(object):
         self.node_autoinc = next_node_id
 
 
-def gotoxy(x, y):
-    sys.stdout.write("\033[%d;%dH" % (y + 1, x + 1))
-    sys.stdout.flush()
+# Global terminal instance
+terminal = Terminal()
 
 def draw_tile(tile, hexmap, color=None):
     col, row = get_tile_screen_pos(tile, hexmap)
@@ -170,36 +170,33 @@ def draw_tile(tile, hexmap, color=None):
     coord_line = "|" + coord_str + "|"
 
     if color:
-        sys.stdout.write(color)  # Accept any valid ANSI color sequence
+        terminal.setcolor(color)
 
     # Draw top border
-    gotoxy(col, row)
-    sys.stdout.write(border)
+    terminal.writexy(col, row, border)
 
     # Draw middle lines (centered coord string on first, blank on others)
     for i in range(1, TILE_HEIGHT - 1):
-        gotoxy(col, row + i)
         if i == (TILE_HEIGHT - 1) // 2:
-            sys.stdout.write(coord_line)
+            terminal.writexy(col, row + i, coord_line)
         else:
-            sys.stdout.write("|" + (" " * (TILE_WIDTH - 2)) + "|")
+            terminal.writexy(col, row + i, "|" + (" " * (TILE_WIDTH - 2)) + "|")
 
     # Draw bottom border
-    gotoxy(col, row + TILE_HEIGHT - 1)
-    sys.stdout.write(border)
+    terminal.writexy(col, row + TILE_HEIGHT - 1, border)
 
     if color:
-        sys.stdout.write("\033[0m")  # Reset
+        terminal.resetcolor()
 
-    sys.stdout.flush()
+    terminal.refresh()
 
 def draw_road(tile, edge_idx, hexmap, color=None):
     col, row = get_tile_screen_pos(tile, hexmap)
     
     if color is None:
-        sys.stdout.write("\033[34m")
+        terminal.setcolor(terminal.COLOR_PAIR_BLUE)
     else: 
-        sys.stdout.write(color)
+        terminal.setcolor(color)
 
 
     road_width = (TILE_WIDTH - 3) // 2
@@ -223,40 +220,32 @@ def draw_road(tile, edge_idx, hexmap, color=None):
     if edge_idx == HexMap.EDGE_E:
         # Draw vertical road for E edge, spanning the tile height (excluding borders)
         for y in range(tile_vstart, tile_vend + 1):
-            gotoxy(col + TILE_WIDTH - 1, y)
-            sys.stdout.write(chr(186))
+            terminal.writexy(col + TILE_WIDTH - 1, y, chr(186))
         # Optionally, add label at the middle
-        gotoxy(col + TILE_WIDTH - 1, tile_middle)
-        sys.stdout.write("E")
+        terminal.writexy(col + TILE_WIDTH - 1, tile_middle, "E")
     elif edge_idx == HexMap.EDGE_W:
         for y in range(tile_vstart, tile_vend + 1):
-            gotoxy(col, y)
-            sys.stdout.write(chr(186))
-        gotoxy(col, tile_middle)
-        sys.stdout.write("W")
+            terminal.writexy(col, y, chr(186))
+        terminal.writexy(col, tile_middle, "W")
     elif edge_idx == HexMap.EDGE_NE:
-        gotoxy(col + 1 + (TILE_WIDTH // 2), tile_top)
-        sys.stdout.write(label)
+        terminal.writexy(col + 1 + (TILE_WIDTH // 2), tile_top, label)
     elif edge_idx == HexMap.EDGE_NW:
-        gotoxy(col + 1, tile_top)
-        sys.stdout.write(label)
+        terminal.writexy(col + 1, tile_top, label)
     elif edge_idx == HexMap.EDGE_SW:
-        gotoxy(col + 1, tile_bottom)
-        sys.stdout.write(label)
+        terminal.writexy(col + 1, tile_bottom, label)
     elif edge_idx == HexMap.EDGE_SE:
-        gotoxy(col + 1 + (TILE_WIDTH // 2), tile_bottom)
-        sys.stdout.write(label)
+        terminal.writexy(col + 1 + (TILE_WIDTH // 2), tile_bottom, label)
 
-    sys.stdout.write("\033[0m")
-    sys.stdout.flush()
+    terminal.resetcolor()
+    terminal.refresh()
 
 def draw_node(tile, node_idx, hexmap, color=None):
     col, row = get_tile_screen_pos(tile, hexmap)
 
     if color == None:
-        sys.stdout.write("\033[91m") #bright red
+        terminal.setcolor(terminal.COLOR_PAIR_BRIGHT_RED)
     else:
-        sys.stdout.write(color)
+        terminal.setcolor(color)
 
     # Calculate tile vertical positions
     tile_top = row
@@ -264,25 +253,19 @@ def draw_node(tile, node_idx, hexmap, color=None):
     tile_bottom = row + TILE_HEIGHT - 1
 
     if node_idx == HexMap.NODE_N:
-        gotoxy(col + TILE_WIDTH // 2, tile_top)
-        sys.stdout.write("+")
+        terminal.writexy(col + TILE_WIDTH // 2, tile_top, "+")
     elif node_idx == HexMap.NODE_NE:
-        gotoxy(col + TILE_WIDTH - 1, tile_top)
-        sys.stdout.write("+")
+        terminal.writexy(col + TILE_WIDTH - 1, tile_top, "+")
     elif node_idx == HexMap.NODE_SE:
-        gotoxy(col + TILE_WIDTH - 1, tile_bottom)
-        sys.stdout.write("+")
+        terminal.writexy(col + TILE_WIDTH - 1, tile_bottom, "+")
     elif node_idx == HexMap.NODE_S:
-        gotoxy(col + TILE_WIDTH // 2, tile_bottom)
-        sys.stdout.write("+")
+        terminal.writexy(col + TILE_WIDTH // 2, tile_bottom, "+")
     elif node_idx == HexMap.NODE_SW:
-        gotoxy(col, tile_bottom)
-        sys.stdout.write("+")
+        terminal.writexy(col, tile_bottom, "+")
     elif node_idx == HexMap.NODE_NW:
-        gotoxy(col, tile_top)
-        sys.stdout.write("+")
-    sys.stdout.write("\033[0m")
-    sys.stdout.flush()
+        terminal.writexy(col, tile_top, "+")
+    terminal.resetcolor()
+    terminal.refresh()
 
 def compute_bounds(hexmap):
     min_q = min(tile.x for tile in hexmap.tiles.values())
@@ -386,13 +369,13 @@ def find_surrounding_tiles_and_nodes(hexmap, edge_id, debug=False):
         # Draw all tiles first:
         for neighbor_tile, _, _ in candidate_nodes:
             if neighbor_tile not in drawn_tiles:
-                draw_tile(neighbor_tile, hexmap, color=hexmap.GREEN)
+                draw_tile(neighbor_tile, hexmap, color=terminal.COLOR_PAIR_GREEN)
                 #drawn_tiles.add(neighbor_tile)
 
         # Then draw all nodes:
         for neighbor_tile, _, edge_idx in candidate_nodes:
-            draw_node(neighbor_tile, edge_idx, hexmap, color=hexmap.YELLOW)
-            draw_node(neighbor_tile, (edge_idx + 1) % 6, hexmap, color=YELLOW)
+            draw_node(neighbor_tile, edge_idx, hexmap, color=terminal.COLOR_PAIR_YELLOW)
+            draw_node(neighbor_tile, (edge_idx + 1) % 6, hexmap, color=terminal.COLOR_PAIR_YELLOW)
 
     return candidate_nodes  # list of (tile, node_id, local_edge_idx)
 
@@ -563,9 +546,8 @@ def random_branching_road_walk(hexmap, player_id=1, steps=20, boundary_nodes=Non
         # Pick one randomly
         tile, edge_idx, edge_id, new_node = random.choice(neighbors)
 
-        RED = "\033[31m"
         if player_id == 1:
-            draw_road(tile, edge_idx, hexmap, color=RED)
+            draw_road(tile, edge_idx, hexmap, color=terminal.COLOR_PAIR_RED)
         else:
             draw_road(tile, edge_idx, hexmap)
 
@@ -596,29 +578,24 @@ def get_boundary_nodes(hexmap):
 
 
 if __name__ == "__main__":
-    sys.stdout.write("\033[2J")
-    sys.stdout.flush()
-    gotoxy(0, 0)
+    import time
+    
+    terminal.clear()
+    terminal.gotoxy(0, 0)
 
     hexmap = HexMap()
     hexmap.generate_default_map(radius=3)
     hexmap.build_nodes_and_edges()
 
-    WHITE = "\033[37m"
-    YELLOW = "\033[33m"
-    RED = "\033[31m"
-    GREEN = "\033[32m"
-    GREY = "\033[90m"   
-
     for tile in hexmap.tiles.values():
-        draw_tile(tile, hexmap, GREY)
+        draw_tile(tile, hexmap, terminal.COLOR_PAIR_GREY)
 
     boundary_nodes = get_boundary_nodes(hexmap)
 
     for tile in hexmap.tiles.values():
         for idx, node_id in enumerate(tile.nodes):
             if node_id in boundary_nodes:
-                draw_node(tile, idx, hexmap, color=WHITE)  # White color
+                draw_node(tile, idx, hexmap, color=terminal.COLOR_PAIR_WHITE)  # White color
 
     #get neighboring tiles
 
@@ -656,12 +633,29 @@ if __name__ == "__main__":
 
 
     width, height = get_map_screen_size(hexmap)
-    gotoxy(0, height)
+    terminal.writexy(0, height, "")
 
     length = compute_longest_road_simple(hexmap, 1)
-    print("Longest road for player 1: %d tiles" % length)
+    terminal.write("Longest road for player 1: %d tiles\n" % length)
     length = compute_longest_road_simple(hexmap, 2)
-    print("Longest road for player 2: %d tiles" % length)
+    terminal.write("Longest road for player 2: %d tiles\n" % length)
+    
+    terminal.refresh()
+
+    # Wait for a key press before exiting
+    terminal.write("Press any key to exit...")
+    terminal.refresh()
+    while not terminal.kbhit():
+        time.sleep(0.1)
+    terminal.getch()
+    
+    # Clean exit
+    try:
+        terminal.curses.nocbreak()
+        terminal.curses.echo()
+        terminal.curses.endwin()
+    except:
+        pass
 
     #verify_node_id_consistency(hexmap)
     #verify_edge_id_consistency(hexmap)
