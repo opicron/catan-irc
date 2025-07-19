@@ -1,7 +1,6 @@
 # -*- coding: cp437 -*-
 # python 2.7 only
-
-# client.py
+# Hex map data structures and drawing functions
 
 import sys
 import random
@@ -310,34 +309,7 @@ def get_tile_screen_pos(tile, hexmap):
     return col, row
 
 
-def compute_longest_road_simple(hexmap, player_id):
-    G = nx.Graph()
 
-    # Build graph: nodes = global node IDs, edges = player roads
-    for edge_id, owner in hexmap.road_owners.items():
-        if owner != player_id:
-            continue
-
-        tile_coord, edge_idx = hexmap.edge_to_tile[edge_id]
-        tile = hexmap.tiles[tile_coord]
-        n1 = tile.nodes[edge_idx]
-        n2 = tile.nodes[(edge_idx + 1) % 6]
-
-        if n1 != n2:
-            G.add_edge(n1, n2)
-
-    # Compute longest simple path
-    if not G:
-        return 0
-
-    longest = 0
-    for node in G.nodes():
-        lengths = nx.single_source_dijkstra_path_length(G, node)
-        max_len = max(lengths.values())
-        if max_len > longest:
-            longest = max_len
-
-    return longest
 
 
 def find_surrounding_tiles_and_nodes(hexmap, edge_id, debug=False):
@@ -386,7 +358,7 @@ def find_surrounding_tiles_and_nodes(hexmap, edge_id, debug=False):
 
 
 def verify_node_id_consistency(hexmap):
-    print("\nVerifying node ID consistency...")
+    terminal.write("\nVerifying node ID consistency...\n")
 
     inconsistent = False
     checked_pairs = set()
@@ -425,20 +397,20 @@ def verify_node_id_consistency(hexmap):
 
                 if not (node1_match and node2_match):
                     inconsistent = True
-                    print("Inconsistent node IDs between tile %s and neighbor %s" % (
+                    terminal.write("Inconsistent node IDs between tile %s and neighbor %s\n" % (
                         str(tile_coord), str(neighbor_coord)
                     ))
-                    print("  Tile nodes: %d-%d at edge %d" % (node_a1, node_a2, edge_idx))
-                    print("  Neighbor nodes: %d-%d at edge %d" % (node_b2, node_b1, opp_edge_idx))
+                    terminal.write("  Tile nodes: %d-%d at edge %d\n" % (node_a1, node_a2, edge_idx))
+                    terminal.write("  Neighbor nodes: %d-%d at edge %d\n" % (node_b2, node_b1, opp_edge_idx))
 
     if not inconsistent:
-        print("Node ID consistency verified: all shared nodes match correctly.")
+        terminal.write("Node ID consistency verified: all shared nodes match correctly.\n")
     else:
-        print("Node ID inconsistencies detected! Check your build_nodes_and_edges logic.")
+        terminal.write("Node ID inconsistencies detected! Check your build_nodes_and_edges logic.\n")
 
 
 def verify_edge_id_consistency(hexmap):
-    print("\nVerifying edge ID consistency...")
+    terminal.write("\nVerifying edge ID consistency...\n")
 
     def neighbor_coord_func(tile_coord, dir_idx):
         dx, dy, dz = hexmap.directions[dir_idx]
@@ -465,19 +437,19 @@ def verify_edge_id_consistency(hexmap):
 
                 if my_edge_id != their_edge_id:
                     inconsistent = True
-                    print("Inconsistent edge IDs between tile %s and neighbor %s" %
+                    terminal.write("Inconsistent edge IDs between tile %s and neighbor %s\n" %
                           (str(tile_coord), str(neighbor_coord)))
-                    print("  Tile edge %d = edge ID %d" % (i, my_edge_id))
-                    print("  Neighbor edge %d = edge ID %d" % (opp_edge_idx, their_edge_id))
+                    terminal.write("  Tile edge %d = edge ID %d\n" % (i, my_edge_id))
+                    terminal.write("  Neighbor edge %d = edge ID %d\n" % (opp_edge_idx, their_edge_id))
 
     if not inconsistent:
-        print("Edge ID consistency verified: all shared edges match correctly.")
+        terminal.write("Edge ID consistency verified: all shared edges match correctly.\n")
     else:
-        print("Edge ID inconsistencies detected! Check your build_nodes_and_edges edge assignment.")
+        terminal.write("Edge ID inconsistencies detected! Check your build_nodes_and_edges edge assignment.\n")
 
 
 def check_degenerate_edges(hexmap):
-    print("\nChecking degenerate edges (same node on both ends)...")
+    terminal.write("\nChecking degenerate edges (same node on both ends)...\n")
 
     degenerate_edges = []
 
@@ -492,96 +464,17 @@ def check_degenerate_edges(hexmap):
             degenerate_edges.append((edge_id, tile_coord, edge_idx))
 
     if not degenerate_edges:
-        print("No degenerate edges found.")
+        terminal.write("No degenerate edges found.\n")
     else:
-        print("Degenerate edges detected:")
+        terminal.write("Degenerate edges detected:\n")
         for edge_id, tile_coord, edge_idx in degenerate_edges:
-            print("  Edge ID %d on tile %s at index %d (nodes %d-%d)" %
+            terminal.write("  Edge ID %d on tile %s at index %d (nodes %d-%d)\n" %
                   (edge_id, str(tile_coord), edge_idx, tile.nodes[edge_idx], tile.nodes[(edge_idx + 1) % 6]))
             
 
-def random_branching_road_walk(hexmap, player_id=1, steps=20, boundary_nodes=None):
-    import time
-    visited_edges = set()
-    visited_nodes = set()
-
-    all_nodes = list(hexmap.node_ids.values())
-
-    if boundary_nodes is None:
-        boundary_nodes = set()
-
-    non_boundary_nodes = [n for n in all_nodes if n not in boundary_nodes]
-    if not non_boundary_nodes:
-        return  # No valid starting node
-
-    # Start from a random non-boundary node
-    start_node = random.choice(non_boundary_nodes)
-    frontier = [start_node]
-    visited_nodes.add(start_node)
-
-    for _ in range(steps):
-        if not frontier:
-            break  # No more frontier to expand
-
-        current_node = random.choice(frontier)
-        neighbors = []
-
-        # Find all unvisited edges incident to current_node
-        for tile in hexmap.tiles.values():
-            for i in range(6):
-                e = tile.edges[i]
-                n1 = tile.nodes[i]
-                n2 = tile.nodes[(i + 1) % 6]
-
-                if e in visited_edges:
-                    continue
-
-                if current_node in (n1, n2):
-                    other_node = n2 if current_node == n1 else n1
-
-                    if other_node in visited_nodes or other_node in boundary_nodes:
-                        continue  # Skip visited or boundary node
-
-                    neighbors.append((tile, i, e, other_node))
-
-        if not neighbors:
-            frontier.remove(current_node)
-            continue
-
-        # Pick one randomly
-        tile, edge_idx, edge_id, new_node = random.choice(neighbors)
-
-        if player_id == 1:
-            draw_road(tile, edge_idx, hexmap, color=terminal.COLOR_PAIR_RED)
-        else:
-            draw_road(tile, edge_idx, hexmap)
-
-        hexmap.road_owners[edge_id] = player_id
-
-        visited_edges.add(edge_id)
-        visited_nodes.add(new_node)
-        frontier.append(new_node)
 
 
-def get_boundary_nodes(hexmap):
-    boundary_nodes = set()
-
-    for tile_coord, tile in hexmap.tiles.items():
-        for dir_idx in range(6):
-            dx, dy, dz = hexmap.directions[dir_idx]
-            neighbor_coord = (tile.x + dx, tile.y + dy, tile.z + dz)
-
-            if neighbor_coord not in hexmap.tiles:
-                # This edge points outward -> nodes on this edge are boundary nodes
-                node_a = tile.nodes[dir_idx]
-                node_b = tile.nodes[(dir_idx + 1) % 6]
-
-                boundary_nodes.add(node_a)
-                boundary_nodes.add(node_b)
-
-    return boundary_nodes
-
-def draw_map(hexmap, boundary_nodes):
+def draw_map(hexmap, boundary_nodes=[]):
     for tile in hexmap.tiles.values():
         draw_tile(tile, hexmap, terminal.COLOR_PAIR_GREY)
 
@@ -590,86 +483,32 @@ def draw_map(hexmap, boundary_nodes):
             if node_id in boundary_nodes:
                 draw_node(tile, idx, hexmap, color=terminal.COLOR_PAIR_WHITE)  # White color
 
-
 if __name__ == "__main__":
-    import time
-    
+
+    import terminal
+    terminal = Terminal()
+
     terminal.clear()
     terminal.gotoxy(0, 0)
 
+    # Create hex map and game board
     hexmap = HexMap()
     hexmap.generate_default_map(radius=3)
     hexmap.build_nodes_and_edges()
 
-
-    boundary_nodes = get_boundary_nodes(hexmap)
-    draw_map(hexmap, boundary_nodes)
-
-    #get neighboring tiles
-
-    #center = (0, 0, 0)
-    #neighbors = set()
-    #for dx, dy, dz in hexmap.directions:
-    #    neighbor_tile = (center[0]+dx, center[1]+dy, center[2]+dz)
-    #    if neighbor_tile in hexmap.tiles:
-    #        neighbors.add(neighbor_tile)
-    #neighbors.add(center)
-
-    # draw neighboring tiles
-    #for coord in neighbors:
-    #    tile = hexmap.tiles[coord]
-    #    col, row = get_tile_screen_pos(tile, hexmap)
-    #    draw_tile(tile, col, row, GREY)
-
-    random_branching_road_walk(hexmap, player_id=1, steps=4, boundary_nodes=boundary_nodes)
-    random_branching_road_walk(hexmap, player_id=2, steps=5, boundary_nodes=boundary_nodes)
-    
-    # surrounding tiles and nodes for a random edge
-    #edges = list(hexmap.edge_ids.values())
-    #edge_id = random.choice(edges)
-    
-    #store road
-    #hexmap.road_owners[edge_id] = 1
-
-    #candidate_nodes = find_surrounding_tiles_and_nodes(hexmap, edge_id, debug=True)
-    #for tile, node_idx, dir_idx in candidate_nodes:
-    #    #draw_node(tile, node_idx, *get_tile_screen_pos(tile, hexmap))
-    #    draw_road(tile, dir_idx, *get_tile_screen_pos(tile, hexmap))
-    #    #store road
-    #    edge_id = tile.edges[dir_idx]
-    #    hexmap.road_owners[edge_id] = 1
-
+    draw_map(hexmap)
 
     width, height = get_map_screen_size(hexmap)
     terminal.writexy(0, height, "")
 
-
-    length = compute_longest_road_simple(hexmap, 1)
-    terminal.write("Longest road for player 1: %d tiles\n" % length)
-    length = compute_longest_road_simple(hexmap, 2)
-    terminal.write("Longest road for player 2: %d tiles\n" % length)
-    
-    terminal.refresh()
-    terminal.getstr()
+    verify_node_id_consistency(hexmap)
+    verify_edge_id_consistency(hexmap)
+    check_degenerate_edges(hexmap)
 
     # Capture screen buffer including the additional text lines
-    # Add extra lines to capture the "Longest road" text
-
-    # ADD GET SCREEN SIZE hERE\
     height, width = terminal.gettermsize()
+    char_buffer, color_buffer = terminal.dump_screen_to_buffer(terminal.stdscr, height, width)
 
-    #height = height + 3  # +2 for the road text lines, +1 for safety
-    char_buffer, color_buffer = terminal.dump_screen_to_buffer(terminal.stdscr, height, width-1)
-
-
-    # Wait for a key press before exiting
-    #terminal.write("Press any key to exit...")
-    #terminal.refresh()
-
-    #while not terminal.kbhit():
-    #    time.sleep(0.1)
-    #terminal.getstr()  # Consume the key press
-    
     # Clean exit
     try:
         terminal.curses.nocbreak()
@@ -678,13 +517,7 @@ if __name__ == "__main__":
     except:
         pass
 
-
     terminal.dump_buffer_to_console(char_buffer, color_buffer)
-
-        
-    #verify_node_id_consistency(hexmap)
-    #verify_edge_id_consistency(hexmap)
-    #check_degenerate_edges(hexmap)
 
 
     #for edge_id_owner in hexmap.road_owners.items():
@@ -739,3 +572,18 @@ if __name__ == "__main__":
     #        print("Tile %s edges:" % str(tile_coord))
     #    for idx, edge in enumerate(tile.edges):
     #        print("  Edge idx %d = global edge id %d" % (idx, edge))
+
+
+def get_boundary_nodes(hexmap):
+    """Get all nodes on the boundary of the map"""
+    boundary_nodes = set()
+    for tile_coord, tile in hexmap.tiles.items():
+        for dir_idx in range(6):
+            dx, dy, dz = hexmap.directions[dir_idx]
+            neighbor_coord = (tile.x + dx, tile.y + dy, tile.z + dz)
+            if neighbor_coord not in hexmap.tiles:
+                node_a = tile.nodes[dir_idx]
+                node_b = tile.nodes[(dir_idx + 1) % 6]
+                boundary_nodes.add(node_a)
+                boundary_nodes.add(node_b)
+    return boundary_nodes
