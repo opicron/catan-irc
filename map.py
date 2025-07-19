@@ -184,7 +184,12 @@ def draw_tile(tile, hexmap, color=None):
 
     # Draw bottom border
     terminal.writexy(col, row + TILE_HEIGHT - 1, border)
-
+    
+    # Add center markers for top and bottom borders (hex intersection points)
+    center_x = col + TILE_WIDTH // 2
+    terminal.writexy(center_x, row, "+")                    # Top center
+    terminal.writexy(center_x, row + TILE_HEIGHT - 1, "+") # Bottom center
+    
     if color:
         terminal.resetcolor()
 
@@ -645,6 +650,7 @@ if __name__ == "__main__":
     terminal.write("Longest road for player 2: %d tiles\n" % length)
     
     terminal.refresh()
+    terminal.getstr()
 
     # Capture screen buffer including the additional text lines
     # Add extra lines to capture the "Longest road" text
