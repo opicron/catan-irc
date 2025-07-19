@@ -2,15 +2,11 @@
 # python 2.7 only
 # Hex map data structures and drawing functions
 
-import sys
-import random
 import networkx as nx
 from terminal import Terminal
 
-
 TILE_WIDTH = 11
 TILE_HEIGHT = 4
-
 class HexTile(object):
     def __init__(self, tile_id, x, y, z, tile_type="blank"):
         assert x + y + z == 0
@@ -161,6 +157,7 @@ class HexMap(object):
 # Global terminal instance
 terminal = Terminal()
 
+
 def draw_tile(tile, hexmap, color=None):
     col, row = get_tile_screen_pos(tile, hexmap)
     border = "+" + ("-" * (TILE_WIDTH - 2)) + "+"
@@ -253,7 +250,6 @@ def draw_node(tile, node_idx, hexmap, color=None):
 
     # Calculate tile vertical positions
     tile_top = row
-    tile_middle = row + (TILE_HEIGHT - 1) // 2
     tile_bottom = row + TILE_HEIGHT - 1
 
     if node_idx == HexMap.NODE_N:
@@ -307,9 +303,6 @@ def get_tile_screen_pos(tile, hexmap):
     if r % 2 != 0:
         col += TILE_WIDTH // 2
     return col, row
-
-
-
 
 
 def find_surrounding_tiles_and_nodes(hexmap, edge_id, debug=False):
@@ -482,6 +475,7 @@ def draw_map(hexmap, boundary_nodes=[]):
         for idx, node_id in enumerate(tile.nodes):
             if node_id in boundary_nodes:
                 draw_node(tile, idx, hexmap, color=terminal.COLOR_PAIR_WHITE)  # White color
+
 
 if __name__ == "__main__":
 
