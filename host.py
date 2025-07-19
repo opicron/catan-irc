@@ -1,3 +1,6 @@
+# -*- coding: cp437 -*-
+# python 2.7 only
+
 # host.py
 
 import ConfigParser

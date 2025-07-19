@@ -1,4 +1,7 @@
-# ====================== game.py ======================
+# -*- coding: cp437 -*-
+# python 2.7 only
+
+# game.py
 
 import random
 

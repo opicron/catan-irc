@@ -1,2 +1,3 @@
 *.pyc
 test.code-workspace
+host_debug.log

@@ -1,3 +1,8 @@
+# -*- coding: cp437 -*-
+# python 2.7 only
+
+# client.py
+
 import sys
 import random
 import networkx as nx
@@ -178,8 +183,13 @@ def draw_tile(tile, col, row, color=None):
 
     sys.stdout.flush()
 
-def draw_road(tile, edge_idx, col, row):
-    sys.stdout.write("\033[34m")
+def draw_road(tile, edge_idx, col, row, color=None):
+    
+    if color is None:
+        sys.stdout.write("\033[34m")
+    else: 
+        sys.stdout.write(color)
+
     road_width = (TILE_WIDTH - 3) // 2
 
     dir_labels = {
@@ -481,17 +491,22 @@ def check_degenerate_edges(hexmap):
                   (edge_id, str(tile_coord), edge_idx, tile.nodes[edge_idx], tile.nodes[(edge_idx + 1) % 6]))
             
 
-def random_branching_road_walk(hexmap, player_id=1, steps=20):
+def random_branching_road_walk(hexmap, player_id=1, steps=20, boundary_nodes=None):
     import time
     visited_edges = set()
     visited_nodes = set()
 
     all_nodes = list(hexmap.node_ids.values())
-    if not all_nodes:
-        return
 
-    # Start from a random node
-    start_node = random.choice(all_nodes)
+    if boundary_nodes is None:
+        boundary_nodes = set()
+
+    non_boundary_nodes = [n for n in all_nodes if n not in boundary_nodes]
+    if not non_boundary_nodes:
+        return  # No valid starting node
+
+    # Start from a random non-boundary node
+    start_node = random.choice(non_boundary_nodes)
     frontier = [start_node]
     visited_nodes.add(start_node)
 
@@ -514,8 +529,11 @@ def random_branching_road_walk(hexmap, player_id=1, steps=20):
 
                 if current_node in (n1, n2):
                     other_node = n2 if current_node == n1 else n1
-                    if other_node not in visited_nodes:
-                        neighbors.append((tile, i, e, other_node))
+
+                    if other_node in visited_nodes or other_node in boundary_nodes:
+                        continue  # Skip visited or boundary node
+
+                    neighbors.append((tile, i, e, other_node))
 
         if not neighbors:
             frontier.remove(current_node)
@@ -524,23 +542,20 @@ def random_branching_road_walk(hexmap, player_id=1, steps=20):
         # Pick one randomly
         tile, edge_idx, edge_id, new_node = random.choice(neighbors)
 
-        # Draw it visually
         col, row = get_tile_screen_pos(tile, hexmap)
-        draw_road(tile, edge_idx, col, row)
-        #draw_node(tile, edge_idx, col, row)
-        #draw_node(tile, (edge_idx + 1) % 6, col, row)
 
-        # Store ownership
+        RED = "\033[31m"
+        if player_id == 1:
+            draw_road(tile, edge_idx, col, row, color=RED)
+        else:
+            draw_road(tile, edge_idx, col, row)
+
         hexmap.road_owners[edge_id] = player_id
 
-        # Mark as visited
         visited_edges.add(edge_id)
         visited_nodes.add(new_node)
-
-        # Expand frontier
         frontier.append(new_node)
 
-        #time.sleep(0.1)
 
 def get_boundary_nodes(hexmap):
     boundary_nodes = set()
@@ -567,7 +582,7 @@ if __name__ == "__main__":
     gotoxy(0, 0)
 
     hexmap = HexMap()
-    hexmap.generate_default_map(radius=2)
+    hexmap.generate_default_map(radius=3)
     hexmap.build_nodes_and_edges()
 
     WHITE = "\033[37m"
@@ -604,9 +619,9 @@ if __name__ == "__main__":
     #    col, row = get_tile_screen_pos(tile, hexmap)
     #    draw_tile(tile, col, row, GREY)
 
-    random_branching_road_walk(hexmap, player_id=1, steps=1)
-    random_branching_road_walk(hexmap, player_id=1, steps=2)
-
+    random_branching_road_walk(hexmap, player_id=1, steps=4, boundary_nodes=boundary_nodes)
+    random_branching_road_walk(hexmap, player_id=2, steps=5, boundary_nodes=boundary_nodes)
+    
     # surrounding tiles and nodes for a random edge
     #edges = list(hexmap.edge_ids.values())
     #edge_id = random.choice(edges)
@@ -628,6 +643,8 @@ if __name__ == "__main__":
 
     length = compute_longest_road_simple(hexmap, 1)
     print("Longest road for player 1: %d tiles" % length)
+    length = compute_longest_road_simple(hexmap, 2)
+    print("Longest road for player 2: %d tiles" % length)
 
     #verify_node_id_consistency(hexmap)
     #verify_edge_id_consistency(hexmap)

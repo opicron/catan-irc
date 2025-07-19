@@ -1,7 +1,11 @@
-import sys
-from terminal import Terminal
+# -*- coding: cp437 -*-
+# python 2.7 only
 
 # ui.py - version 0.4 with combined Terminal class
+
+
+import sys
+from terminal import Terminal
 
 class UI(object):
     def __init__(self, client):

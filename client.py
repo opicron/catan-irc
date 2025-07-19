@@ -1,3 +1,8 @@
+# -*- coding: cp437 -*-
+# python 2.7 only
+
+# client.py
+
 import ConfigParser
 import ssl
 import subprocess
