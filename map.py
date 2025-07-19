@@ -566,18 +566,3 @@ if __name__ == "__main__":
     #        print("Tile %s edges:" % str(tile_coord))
     #    for idx, edge in enumerate(tile.edges):
     #        print("  Edge idx %d = global edge id %d" % (idx, edge))
-
-
-def get_boundary_nodes(hexmap):
-    """Get all nodes on the boundary of the map"""
-    boundary_nodes = set()
-    for tile_coord, tile in hexmap.tiles.items():
-        for dir_idx in range(6):
-            dx, dy, dz = hexmap.directions[dir_idx]
-            neighbor_coord = (tile.x + dx, tile.y + dy, tile.z + dz)
-            if neighbor_coord not in hexmap.tiles:
-                node_a = tile.nodes[dir_idx]
-                node_b = tile.nodes[(dir_idx + 1) % 6]
-                boundary_nodes.add(node_a)
-                boundary_nodes.add(node_b)
-    return boundary_nodes
