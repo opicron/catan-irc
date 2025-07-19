@@ -3,6 +3,15 @@ import atexit
 import signal
 
 class Terminal(object):
+    # ncurses color pair numbers for use by UI and map drawing
+    COLOR_PAIR_WHITE = 1
+    COLOR_PAIR_YELLOW = 2
+    COLOR_PAIR_RED = 3
+    COLOR_PAIR_GREEN = 4
+    COLOR_PAIR_GREY = 5
+    COLOR_PAIR_BLUE = 6
+    COLOR_PAIR_BRIGHT_RED = 7
+
     _cleanup_registered = False
     _curses_module = None
     _instance = None
@@ -42,17 +51,30 @@ class Terminal(object):
         
         # Initialize curses
         self.stdscr = curses.initscr()
+        curses.start_color()
+        if not curses.has_colors():
+            raise Exception("Your terminal does not support color")
+        curses.use_default_colors()
+        # Define color pairs (foreground, background)
+        curses.init_pair(self.COLOR_PAIR_WHITE, curses.COLOR_WHITE, -1)
+        curses.init_pair(self.COLOR_PAIR_YELLOW, curses.COLOR_YELLOW, -1)
+        curses.init_pair(self.COLOR_PAIR_RED, curses.COLOR_RED, -1)
+        curses.init_pair(self.COLOR_PAIR_GREEN, curses.COLOR_GREEN, -1)
+        # Use 8 for grey if available, else fallback to white
+        curses.init_pair(self.COLOR_PAIR_GREY, 8 if hasattr(curses, 'COLOR_BLACK') else curses.COLOR_WHITE, -1)
+        curses.init_pair(self.COLOR_PAIR_BLUE, curses.COLOR_BLUE, -1)
+        curses.init_pair(self.COLOR_PAIR_BRIGHT_RED, curses.COLOR_RED, curses.COLOR_WHITE)
         curses.noecho()        # Don't echo keys to screen
         curses.cbreak()        # React to keys instantly
         curses.curs_set(1)     # Show cursor for input
         self.stdscr.nodelay(1) # Make getch() non-blocking
         self.stdscr.keypad(1)  # Enable special keys
-        
+
         # Get terminal dimensions
         self.height, self.width = self.stdscr.getmaxyx()
         self.cursor_x = 0
         self.cursor_y = 0
-        
+
         self._initialized = True
 
     def __del__(self):
@@ -79,11 +101,27 @@ class Terminal(object):
         """Write text at specified position"""
         self.gotoxy(x, y)
         try:
+            # Get actual cursor position from ncurses
+            current_y, current_x = self.stdscr.getyx()
             # Ensure text fits within screen bounds
-            max_len = self.width - x
+            max_len = self.width - current_x
             if max_len > 0:
                 display_text = text[:max_len]
-                self.stdscr.addstr(self.cursor_y, self.cursor_x, display_text)
+                self.stdscr.addstr(display_text)
+        except self.curses.error:
+            # Handle case where text can't be displayed
+            pass
+
+    def write(self, text):
+        """Write text at current cursor position"""
+        try:
+            # Get actual cursor position from ncurses
+            current_y, current_x = self.stdscr.getyx()
+            # Ensure text fits within screen bounds
+            max_len = self.width - current_x
+            if max_len > 0:
+                display_text = text[:max_len]
+                self.stdscr.addstr(display_text)
         except self.curses.error:
             # Handle case where text can't be displayed
             pass

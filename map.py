@@ -162,7 +162,8 @@ def gotoxy(x, y):
     sys.stdout.write("\033[%d;%dH" % (y + 1, x + 1))
     sys.stdout.flush()
 
-def draw_tile(tile, col, row, color=None):
+def draw_tile(tile, hexmap, color=None):
+    col, row = get_tile_screen_pos(tile, hexmap)
     border = "+" + ("-" * (TILE_WIDTH - 2)) + "+"
     coord_str = "(%d,%d,%d)" % (tile.x, tile.y, tile.z)
     coord_str = coord_str.center(TILE_WIDTH - 2)
@@ -192,7 +193,8 @@ def draw_tile(tile, col, row, color=None):
 
     sys.stdout.flush()
 
-def draw_road(tile, edge_idx, col, row, color=None):
+def draw_road(tile, edge_idx, hexmap, color=None):
+    col, row = get_tile_screen_pos(tile, hexmap)
     
     if color is None:
         sys.stdout.write("\033[34m")
@@ -248,7 +250,8 @@ def draw_road(tile, edge_idx, col, row, color=None):
     sys.stdout.write("\033[0m")
     sys.stdout.flush()
 
-def draw_node(tile, node_idx, col, row, color=None):
+def draw_node(tile, node_idx, hexmap, color=None):
+    col, row = get_tile_screen_pos(tile, hexmap)
 
     if color == None:
         sys.stdout.write("\033[91m") #bright red
@@ -350,10 +353,7 @@ def compute_longest_road_simple(hexmap, player_id):
 
 
 def find_surrounding_tiles_and_nodes(hexmap, edge_id, debug=False):
-    WHITE = "\033[37m"
-    YELLOW = "\033[33m"
-    GREEN = "\033[32m"
-
+    
     if edge_id not in hexmap.edge_to_tile:
         return []
 
@@ -386,15 +386,13 @@ def find_surrounding_tiles_and_nodes(hexmap, edge_id, debug=False):
         # Draw all tiles first:
         for neighbor_tile, _, _ in candidate_nodes:
             if neighbor_tile not in drawn_tiles:
-                col, row = get_tile_screen_pos(neighbor_tile, hexmap)
-                draw_tile(neighbor_tile, col, row, color=GREEN)
-                drawn_tiles.add(neighbor_tile)
+                draw_tile(neighbor_tile, hexmap, color=hexmap.GREEN)
+                #drawn_tiles.add(neighbor_tile)
 
         # Then draw all nodes:
         for neighbor_tile, _, edge_idx in candidate_nodes:
-            col, row = get_tile_screen_pos(neighbor_tile, hexmap)
-            #draw_node(neighbor_tile, edge_idx, col, row, color=YELLOW)
-            #draw_node(neighbor_tile, (edge_idx + 1) % 6, col, row, color=YELLOW)
+            draw_node(neighbor_tile, edge_idx, hexmap, color=hexmap.YELLOW)
+            draw_node(neighbor_tile, (edge_idx + 1) % 6, hexmap, color=YELLOW)
 
     return candidate_nodes  # list of (tile, node_id, local_edge_idx)
 
@@ -565,13 +563,11 @@ def random_branching_road_walk(hexmap, player_id=1, steps=20, boundary_nodes=Non
         # Pick one randomly
         tile, edge_idx, edge_id, new_node = random.choice(neighbors)
 
-        col, row = get_tile_screen_pos(tile, hexmap)
-
         RED = "\033[31m"
         if player_id == 1:
-            draw_road(tile, edge_idx, col, row, color=RED)
+            draw_road(tile, edge_idx, hexmap, color=RED)
         else:
-            draw_road(tile, edge_idx, col, row)
+            draw_road(tile, edge_idx, hexmap)
 
         hexmap.road_owners[edge_id] = player_id
 
@@ -615,16 +611,14 @@ if __name__ == "__main__":
     GREY = "\033[90m"   
 
     for tile in hexmap.tiles.values():
-        col, row = get_tile_screen_pos(tile, hexmap)
-        draw_tile(tile, col, row, GREY)
+        draw_tile(tile, hexmap, GREY)
 
     boundary_nodes = get_boundary_nodes(hexmap)
 
     for tile in hexmap.tiles.values():
-        col, row = get_tile_screen_pos(tile, hexmap)
         for idx, node_id in enumerate(tile.nodes):
             if node_id in boundary_nodes:
-                draw_node(tile, idx, col, row, color=WHITE)  # White color
+                draw_node(tile, idx, hexmap, color=WHITE)  # White color
 
     #get neighboring tiles
 
