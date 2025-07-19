@@ -9,7 +9,7 @@ import networkx as nx
 
 
 TILE_WIDTH = 11
-TILE_HEIGHT = 3
+TILE_HEIGHT = 4
 
 class HexTile(object):
     def __init__(self, tile_id, x, y, z, tile_type="blank"):
@@ -163,7 +163,7 @@ def gotoxy(x, y):
     sys.stdout.flush()
 
 def draw_tile(tile, col, row, color=None):
-    border = "+----+----+"
+    border = "+" + ("-" * (TILE_WIDTH - 2)) + "+"
     coord_str = "(%d,%d,%d)" % (tile.x, tile.y, tile.z)
     coord_str = coord_str.center(TILE_WIDTH - 2)
     coord_line = "|" + coord_str + "|"
@@ -171,11 +171,20 @@ def draw_tile(tile, col, row, color=None):
     if color:
         sys.stdout.write(color)  # Accept any valid ANSI color sequence
 
+    # Draw top border
     gotoxy(col, row)
     sys.stdout.write(border)
-    gotoxy(col, row + 1)
-    sys.stdout.write(coord_line)
-    gotoxy(col, row + 2)
+
+    # Draw middle lines (centered coord string on first, blank on others)
+    for i in range(1, TILE_HEIGHT - 1):
+        gotoxy(col, row + i)
+        if i == (TILE_HEIGHT - 1) // 2:
+            sys.stdout.write(coord_line)
+        else:
+            sys.stdout.write("|" + (" " * (TILE_WIDTH - 2)) + "|")
+
+    # Draw bottom border
+    gotoxy(col, row + TILE_HEIGHT - 1)
     sys.stdout.write(border)
 
     if color:
@@ -190,7 +199,14 @@ def draw_road(tile, edge_idx, col, row, color=None):
     else: 
         sys.stdout.write(color)
 
+
     road_width = (TILE_WIDTH - 3) // 2
+    # Calculate tile vertical positions
+    tile_top = row
+    tile_middle = row + (TILE_HEIGHT - 1) // 2
+    tile_bottom = row + TILE_HEIGHT - 1
+    tile_vstart = row + 1
+    tile_vend = row + TILE_HEIGHT - 2
 
     dir_labels = {
         HexMap.EDGE_E: chr(186)+"E",
@@ -199,32 +215,34 @@ def draw_road(tile, edge_idx, col, row, color=None):
         HexMap.EDGE_W: chr(186)+"W",
         HexMap.EDGE_SW: "=SW=",
         HexMap.EDGE_SE: "=SE="
-        #HexMap.EDGE_E: "|",
-        #HexMap.EDGE_NE: "====",
-        #HexMap.EDGE_NW: "====",
-        #HexMap.EDGE_W: "|",
-        #HexMap.EDGE_SW: "====",
-        #HexMap.EDGE_SE: "===="
     }
 
     label = dir_labels.get(edge_idx, "====")[:road_width]
     if edge_idx == HexMap.EDGE_E:
-        gotoxy(col + TILE_WIDTH - 1, row + 1)
-        sys.stdout.write(label)
+        # Draw vertical road for E edge, spanning the tile height (excluding borders)
+        for y in range(tile_vstart, tile_vend + 1):
+            gotoxy(col + TILE_WIDTH - 1, y)
+            sys.stdout.write(chr(186))
+        # Optionally, add label at the middle
+        gotoxy(col + TILE_WIDTH - 1, tile_middle)
+        sys.stdout.write("E")
     elif edge_idx == HexMap.EDGE_W:
-        gotoxy(col, row + 1)
-        sys.stdout.write(label)
+        for y in range(tile_vstart, tile_vend + 1):
+            gotoxy(col, y)
+            sys.stdout.write(chr(186))
+        gotoxy(col, tile_middle)
+        sys.stdout.write("W")
     elif edge_idx == HexMap.EDGE_NE:
-        gotoxy(col + 1 + (TILE_WIDTH // 2), row)
+        gotoxy(col + 1 + (TILE_WIDTH // 2), tile_top)
         sys.stdout.write(label)
     elif edge_idx == HexMap.EDGE_NW:
-        gotoxy(col + 1, row)
+        gotoxy(col + 1, tile_top)
         sys.stdout.write(label)
     elif edge_idx == HexMap.EDGE_SW:
-        gotoxy(col + 1, row + 2)
+        gotoxy(col + 1, tile_bottom)
         sys.stdout.write(label)
     elif edge_idx == HexMap.EDGE_SE:
-        gotoxy(col + 1 + (TILE_WIDTH // 2), row + 2)
+        gotoxy(col + 1 + (TILE_WIDTH // 2), tile_bottom)
         sys.stdout.write(label)
 
     sys.stdout.write("\033[0m")
@@ -237,23 +255,28 @@ def draw_node(tile, node_idx, col, row, color=None):
     else:
         sys.stdout.write(color)
 
+    # Calculate tile vertical positions
+    tile_top = row
+    tile_middle = row + (TILE_HEIGHT - 1) // 2
+    tile_bottom = row + TILE_HEIGHT - 1
+
     if node_idx == HexMap.NODE_N:
-        gotoxy(col + TILE_WIDTH // 2, row)
+        gotoxy(col + TILE_WIDTH // 2, tile_top)
         sys.stdout.write("+")
     elif node_idx == HexMap.NODE_NE:
-        gotoxy(col + TILE_WIDTH - 1, row)
+        gotoxy(col + TILE_WIDTH - 1, tile_top)
         sys.stdout.write("+")
     elif node_idx == HexMap.NODE_SE:
-        gotoxy(col + TILE_WIDTH - 1, row + 2)
+        gotoxy(col + TILE_WIDTH - 1, tile_bottom)
         sys.stdout.write("+")
     elif node_idx == HexMap.NODE_S:
-        gotoxy(col + TILE_WIDTH // 2, row + 2)
+        gotoxy(col + TILE_WIDTH // 2, tile_bottom)
         sys.stdout.write("+")
     elif node_idx == HexMap.NODE_SW:
-        gotoxy(col, row + 2)
+        gotoxy(col, tile_bottom)
         sys.stdout.write("+")
     elif node_idx == HexMap.NODE_NW:
-        gotoxy(col, row)
+        gotoxy(col, tile_top)
         sys.stdout.write("+")
     sys.stdout.write("\033[0m")
     sys.stdout.flush()
