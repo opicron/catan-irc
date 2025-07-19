@@ -208,10 +208,10 @@ def draw_road(tile, edge_idx, hexmap, color=None):
     tile_vend = row + TILE_HEIGHT - 2
 
     dir_labels = {
-        HexMap.EDGE_E: chr(186)+"E",
+        HexMap.EDGE_E: "|E",  # Use regular pipe character for labels
         HexMap.EDGE_NE: "=NE=",
         HexMap.EDGE_NW: "=NW=",
-        HexMap.EDGE_W: chr(186)+"W",
+        HexMap.EDGE_W: "|W",  # Use regular pipe character for labels  
         HexMap.EDGE_SW: "=SW=",
         HexMap.EDGE_SE: "=SE="
     }
@@ -220,12 +220,12 @@ def draw_road(tile, edge_idx, hexmap, color=None):
     if edge_idx == HexMap.EDGE_E:
         # Draw vertical road for E edge, spanning the tile height (excluding borders)
         for y in range(tile_vstart, tile_vend + 1):
-            terminal.writexy(col + TILE_WIDTH - 1, y, chr(186))
+            terminal.addch(col + TILE_WIDTH - 1, y, 186)  # Use chr(186) with addch
         # Optionally, add label at the middle
         terminal.writexy(col + TILE_WIDTH - 1, tile_middle, "E")
     elif edge_idx == HexMap.EDGE_W:
         for y in range(tile_vstart, tile_vend + 1):
-            terminal.writexy(col, y, chr(186))
+            terminal.addch(col, y, 186)  # Use chr(186) with addch
         terminal.writexy(col, tile_middle, "W")
     elif edge_idx == HexMap.EDGE_NE:
         terminal.writexy(col + 1 + (TILE_WIDTH // 2), tile_top, label)
@@ -576,6 +576,15 @@ def get_boundary_nodes(hexmap):
 
     return boundary_nodes
 
+def draw_map(hexmap, boundary_nodes):
+    for tile in hexmap.tiles.values():
+        draw_tile(tile, hexmap, terminal.COLOR_PAIR_GREY)
+
+    for tile in hexmap.tiles.values():
+        for idx, node_id in enumerate(tile.nodes):
+            if node_id in boundary_nodes:
+                draw_node(tile, idx, hexmap, color=terminal.COLOR_PAIR_WHITE)  # White color
+
 
 if __name__ == "__main__":
     import time
@@ -587,15 +596,9 @@ if __name__ == "__main__":
     hexmap.generate_default_map(radius=3)
     hexmap.build_nodes_and_edges()
 
-    for tile in hexmap.tiles.values():
-        draw_tile(tile, hexmap, terminal.COLOR_PAIR_GREY)
 
     boundary_nodes = get_boundary_nodes(hexmap)
-
-    for tile in hexmap.tiles.values():
-        for idx, node_id in enumerate(tile.nodes):
-            if node_id in boundary_nodes:
-                draw_node(tile, idx, hexmap, color=terminal.COLOR_PAIR_WHITE)  # White color
+    draw_map(hexmap, boundary_nodes)
 
     #get neighboring tiles
 
@@ -635,6 +638,7 @@ if __name__ == "__main__":
     width, height = get_map_screen_size(hexmap)
     terminal.writexy(0, height, "")
 
+
     length = compute_longest_road_simple(hexmap, 1)
     terminal.write("Longest road for player 1: %d tiles\n" % length)
     length = compute_longest_road_simple(hexmap, 2)
@@ -642,12 +646,23 @@ if __name__ == "__main__":
     
     terminal.refresh()
 
+    # Capture screen buffer including the additional text lines
+    # Add extra lines to capture the "Longest road" text
+
+    # ADD GET SCREEN SIZE hERE\
+    height, width = terminal.gettermsize()
+
+    #height = height + 3  # +2 for the road text lines, +1 for safety
+    char_buffer, color_buffer = terminal.dump_screen_to_buffer(terminal.stdscr, height, width-1)
+
+
     # Wait for a key press before exiting
-    terminal.write("Press any key to exit...")
-    terminal.refresh()
-    while not terminal.kbhit():
-        time.sleep(0.1)
-    terminal.getch()
+    #terminal.write("Press any key to exit...")
+    #terminal.refresh()
+
+    #while not terminal.kbhit():
+    #    time.sleep(0.1)
+    #terminal.getstr()  # Consume the key press
     
     # Clean exit
     try:
@@ -657,6 +672,10 @@ if __name__ == "__main__":
     except:
         pass
 
+
+    terminal.dump_buffer_to_console(char_buffer, color_buffer)
+
+        
     #verify_node_id_consistency(hexmap)
     #verify_edge_id_consistency(hexmap)
     #check_degenerate_edges(hexmap)
